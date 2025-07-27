@@ -205,6 +205,10 @@ class i8088:
         # https://www.righto.com/2023/02/silicon-reverse-engineering-intel-8086.html
         self._state.flags |= 2
 
+    def ToSigned8(self, n):
+        n &= 0xff
+        return (n ^ 0x80) - 0x80
+
     def GetState(self) -> state8088.State8088:
         return self._state
 
@@ -299,7 +303,7 @@ class i8088:
         new_segment = 0
 
         if reg == 6:
-            a = self.self._state.bp
+            a = self._state.bp
             cycles = 5
             override_segment = True
             new_segment = self._state.ss
@@ -609,7 +613,7 @@ class i8088:
                 elif self._state.rep_mode == RepMode.REP:
                     pass
                 else:
-                    # unknown _state.rep_mode
+                    # unknown self._state.rep_mode
                     self._state.rep = False
                     rc = False
 
@@ -622,7 +626,7 @@ class i8088:
             if self._state.rep_mode == RepMode.REPE_Z:
                 # REPE/REPZ
                 if self._state.GetFlagZ() != True:
-                    _state.rep = False
+                    self._state.rep = False
 
             elif self._state.rep_mode == RepMode.REPNZ:
                 # REPNZ
@@ -641,7 +645,7 @@ class i8088:
         self._state.crash_counter = 0
 
     def IsInHlt(self) -> bool:
-        return _state.in_hlt
+        return self._state.in_hlt
 
     # cycle counts from https://zsmith.co/intel_i.php
     def Tick(self) -> int:
@@ -649,7 +653,7 @@ class i8088:
         back_from_trace = False
 
         # check for interrupt
-        if self._state.GetFlagI() == True and _state.inhibit_interrupts == False:
+        if self._state.GetFlagI() == True and self._state.inhibit_interrupts == False:
             irq = _io.GetPIC().GetPendingInterrupt()
             if irq != 255:
                 for device in self._devices:
@@ -666,10 +670,10 @@ class i8088:
         self._state.inhibit_interrupts = False
 
         # T-flag produces an interrupt after each instruction
-        if _state.in_hlt:
+        if self._state.in_hlt:
             cycle_count += 2
             self._state.clock += cycle_count  # time needs to progress for timers etc
-            self._io.Tick(cycle_count, _state.clock)
+            self._io.Tick(cycle_count, self._state.clock)
             return cycle_count
 
         instr_start = self._state.ip
@@ -687,13 +691,13 @@ class i8088:
         # handle prefixes
         while opcode in (0x26, 0x2e, 0x36, 0x3e, 0xf2, 0xf3):
             if opcode == 0x26:
-                _state.segment_override = _state.es
+                self._state.segment_override = self._state.es
             elif opcode == 0x2e:
-                _state.segment_override = _state.cs
+                self._state.segment_override = self._state.cs
             elif opcode == 0x36:
-                _state.segment_override = _state.ss
+                self._state.segment_override = self._state.ss
             elif opcode == 0x3e:
-                _state.segment_override = _state.ds
+                self._state.segment_override = self._state.ds
             elif opcode in (0xf2, 0xf3):
                 self._state.rep = True
                 self._state.rep_mode = RepMode.NotSet
@@ -981,7 +985,7 @@ class i8088:
             cycle_count += 4
         elif opcode >= 0x10 and opcode <= 0x13:
             use_flag_c = True
-            result = r1 + r2 + _state.GetFlagC()
+            result = r1 + r2 + self._state.GetFlagC()
             cycle_count += 4
         else:
             if direction:
@@ -997,14 +1001,14 @@ class i8088:
                   pass
             else:  # 0x18...0x1b
                 use_flag_c = True
-                result -= _state.GetFlagC()
+                result -= self._state.GetFlagC()
 
             cycle_count += 4
 
         if direction:
-            SetAddSubFlags(word, r2, r1, result, is_sub, _state.GetFlagC() if use_flag_c else False)
+            SetAddSubFlags(word, r2, r1, result, is_sub, self._state.GetFlagC() if use_flag_c else False)
         else:
-            SetAddSubFlags(word, r1, r2, result, is_sub, _state.GetFlagC() if use_flag_c else False)
+            SetAddSubFlags(word, r1, r2, result, is_sub, self._state.GetFlagC() if use_flag_c else False)
 
         # 0x38...0x3b are CMP
         if apply:
@@ -1158,4 +1162,259 @@ class i8088:
 
         put_cycles = self.UpdateRegisterMem(reg, mod, a_valid, seg, addr, word, v)
 
+        return cycle_count + put_cycles
+
+    def Op_LOOP(self, opcode: int) -> int:  # e0/e1/e2
+        # LOOP
+        cycle_count = 0
+
+        to = self.GetPcByte()
+
+        cx = self._state.GetCX()
+        cx -= 1
+        self._state.SetCX(cx)
+
+        newAddresses = (self._state.ip + ToSigned8(to)) & 0xffff
+
+        cycle_count += 4
+
+        if opcode == 0xe2:
+            if cx > 0:
+                self._state.ip = newAddresses
+                cycle_count += 4
+
+        elif opcode == 0xe1:
+            if cx > 0 and self._state.GetFlagZ() == True:
+                self._state.ip = newAddresses
+                cycle_count += 4
+
+        elif opcode == 0xe0:
+            if cx > 0 and self._state.GetFlagZ() == False:
+                self._state.ip = newAddresses
+                cycle_count += 4
+
+        return cycle_count
+
+    def Op_Jxx(self, opcode: int) -> int:
+        # J..., 0x70/0x60
+        to = self.GetPcByte()
+
+        state = False
+        if opcode == 0x70 or opcode == 0x60:
+            state = self._state.GetFlagO()
+        elif opcode == 0x71 or opcode == 0x61:
+            state = self._state.GetFlagO() == False
+        elif opcode == 0x72 or opcode == 0x62:
+            state = self._state.GetFlagC()
+        elif opcode == 0x73 or opcode == 0x63:
+            state = self._state.GetFlagC() == False
+        elif opcode == 0x74 or opcode == 0x64:
+            state = self._state.GetFlagZ()
+        elif opcode == 0x75 or opcode == 0x65:
+            state = self._state.GetFlagZ() == False
+        elif opcode == 0x76 or opcode == 0x66:
+            state = self._state.GetFlagC() or self._state.GetFlagZ()
+        elif opcode == 0x77 or opcode == 0x67:
+            state = self._state.GetFlagC() == False and self._state.GetFlagZ() == False
+        elif opcode == 0x78 or opcode == 0x68:
+            state = self._state.GetFlagS()
+        elif opcode == 0x79 or opcode == 0x69:
+            state = self._state.GetFlagS() == False
+        elif opcode == 0x7a or opcode == 0x6a:
+            state = self._state.GetFlagP()
+        elif opcode == 0x7b or opcode == 0x6b:
+            state = self._state.GetFlagP() == False
+        elif opcode == 0x7c or opcode == 0x6c:
+            state = self._state.GetFlagS() != self._state.GetFlagO()
+        elif opcode == 0x7d or opcode == 0x6d:
+            state = self._state.GetFlagS() == self._state.GetFlagO()
+        elif opcode == 0x7e or opcode == 0x6e:
+            state = self._state.GetFlagZ() == True or self._state.GetFlagS() != self._state.GetFlagO()
+        elif opcode == 0x7f or opcode == 0x6f:
+            state = self._state.GetFlagZ() == False and self._state.GetFlagS() == self._state.GetFlagO()
+
+        if state:
+            self._state.ip = (self._state.ip + self.ToSigned8(to)) & 0xffff
+            return 16
+
+        return 4
+
+    def Op_shift(self, opcode: int) -> int:
+        cycle_count = 0
+        word = (opcode & 1) == 1
+        o1 = GetPcByte()
+
+        mod = o1 >> 6
+        reg1 = o1 & 7
+
+        (v1, a_valid, seg, addr, get_cycles) = self.GetRegisterMem(reg1, mod, word)
+        cycle_count += get_cycles
+
+        count = 1
+        if (opcode & 2) == 2:
+            count = self._state.cl
+
+        count_1_of = opcode in (0xd0, 0xd1, 0xd2, 0xd3)
+
+        oldSign = (v1 & 0x8000 if word else v1 & 0x80) != 0
+
+        set_flags = False
+
+        mode = (o1 >> 3) & 7
+
+        check_bit = 32768 if word else 128
+        check_bit2 = 16384 if word else 64
+
+        if mode == 0:
+            # ROL
+            for i in range(count):
+                b7 = (v1 & check_bit) == check_bit
+
+                self._state.SetFlagC(b7)
+
+                v1 <<= 1
+                if b7:
+                    v1 |= 1
+
+            if count_1_of:
+                self._state.SetFlagO(_state.GetFlagC() ^ ((v1 & check_bit) == check_bit))
+
+            cycle_count += 2
+
+        elif mode == 1:
+            # ROR
+            for i in range(count):
+                b0 = (v1 & 1) == 1
+
+                self._state.SetFlagC(b0)
+
+                v1 >>= 1
+                if b0:
+                    v1 |= check_bit
+
+            if count_1_of:
+                self._state.SetFlagO(((v1 & check_bit) == check_bit) ^ ((v1 & check_bit2) == check_bit2))
+
+            cycle_count += 2
+
+        elif mode == 2:
+            # RCL
+            for i in range(count):
+                new_carry = (v1 & check_bit) == check_bit
+                v1 <<= 1
+
+                oldCarry = self._state.GetFlagC()
+
+                if oldCarry:
+                    v1 |= 1
+
+                self._state.SetFlagC(new_carry)
+
+            if count_1_of:
+                self._state.SetFlagO(_state.GetFlagC() ^ ((v1 & check_bit) == check_bit))
+
+            cycle_count += 2
+
+        elif mode == 3:
+            # RCR
+            for i in range(count):
+                new_carry = (v1 & 1) == 1
+                v1 >>= 1
+
+                oldCarry = self._state.GetFlagC()
+                if oldCarry:
+                    v1 |= 0x8000 if word else 0x80
+
+                self._state.SetFlagC(new_carry)
+
+            if count_1_of:
+                self._state.SetFlagO(((v1 & check_bit) == check_bit) ^ ((v1 & check_bit2) == check_bit2))
+
+            cycle_count += 2
+
+        elif mode == 4:
+            prev_v1 = v1
+
+            # SAL/SHL
+            for i in range(count):
+                new_carry = (v1 & check_bit) == check_bit
+                v1 <<= 1
+                self._state.SetFlagC(new_carry)
+
+            set_flags = count != 0
+            if set_flags:
+                self._state.SetFlagO(((v1 & check_bit) == check_bit) ^ self._state.GetFlagC())
+
+            cycle_count += count * 4
+
+        elif mode == 5:
+            org_v1 = v1
+
+            # SHR
+            for i in range(count):
+                new_carry = (v1 & 1) == 1
+                v1 >>= 1
+                self._state.SetFlagC(new_carry)
+
+            set_flags = count != 0
+
+            if count == 1:
+                self._state.SetFlagO((org_v1 & check_bit) != 0)
+            else:
+                self._state.SetFlagO(False)
+
+            cycle_count += count * 4
+
+        elif mode == 6:
+            if opcode >= 0xd2:
+                # SETMOC
+                if self._state.cl != 0:
+                    self._state.SetFlagC(False)
+                    self._state.SetFlagA(False)
+                    self._state.SetFlagZ(False)
+                    self._state.SetFlagO(False)
+                    self._state.SetFlagP(0xff)
+                    self._state.SetFlagS(True)
+
+                    v1 = 0xffff if word else 0xff
+
+                    cycle_count += 5 if word else 4
+            else:
+                # SETMO
+                self._state.SetFlagC(False)
+                self._state.SetFlagA(False)
+                self._state.SetFlagZ(False)
+                self._state.SetFlagO(False)
+                self._state.SetFlagP(0xff)
+                self._state.SetFlagS(True)
+
+                v1 = 0xffff if word else 0xff
+
+                cycle_count += 3 if word else 2
+
+        elif mode == 7:
+            # SAR
+            mask = check_bit if (v1 & check_bit) != 0 else 0
+
+            for i in range(count):
+                new_carry = (v1 & 0x01) == 0x01
+                v1 >>= 1
+                v1 |= mask
+                self._state.SetFlagC(new_carry)
+
+            set_flags = count != 0
+            if set_flags:
+                self._state.SetFlagO(False)
+
+            cycle_count += 2
+
+        if not word:
+            v1 &= 0xff
+
+        if set_flags:
+            self._state.SetFlagS((v1 & 0x8000 if word else v1 & 0x80) != 0)
+            self._state.SetFlagZ(v1 == 0)
+            self._state.SetFlagP(v1)
+
+        put_cycles = self.UpdateRegisterMem(reg1, mod, a_valid, seg, addr, word, v1)
         return cycle_count + put_cycles
