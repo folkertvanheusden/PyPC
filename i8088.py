@@ -1470,3 +1470,26 @@ class i8088:
             cycle_count += put_cycles
 
         return cycle_count
+
+    def Op_INC_DEC(self, opcode: int) ->int:
+        # INC/DECw
+        reg = (opcode - 0x40) & 7
+        v = self.GetRegister(reg, true)
+        isDec = opcode >= 0x48
+
+        if isDec:
+            v -= 1
+            self._state.SetFlagO(v == 0x7fff)
+            self._state.SetFlagA((v & 15) == 15)
+        else:
+            v += 1
+            self._state.SetFlagO(v == 0x8000)
+            self._state.SetFlagA((v & 15) == 0)
+
+        self._state.SetFlagS((v & 0x8000) == 0x8000)
+        self._state.SetFlagZ(v == 0)
+        self._state.SetFlagP(v)
+
+        self.PutRegister(reg, true, v)
+
+        return 3
