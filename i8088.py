@@ -1418,3 +1418,55 @@ class i8088:
 
         put_cycles = self.UpdateRegisterMem(reg1, mod, a_valid, seg, addr, word, v1)
         return cycle_count + put_cycles
+
+    def Op_FPU(self, opcode: int) -> int:
+        # FPU
+        o1 = GetPcByte()
+        mod = o1 >> 6
+        reg1 = o1 & 7
+        (v1, a_valid, seg, addr, get_cycles) = self.GetRegisterMem(reg1, mod, False)
+        return get_cycles + 2
+
+    def Op_FWAIT(self, opcode: int) -> int:  # 0x9b
+        # FWAIT
+        return 2  # TODO
+
+    def Op_REFT(self, opcode: int) -> int:
+        # RETF n / RETF
+        nToRelease = self.GetPcWord() if (opcode == 0xca or opcode == 0xc8) else 0
+
+        self._state.ip = self.pop()
+        self._state.cs = self.pop()
+
+        if opcode == 0xca or opcode == 0xc8:
+            self._state.sp += nToRelease
+            return 33 if opcode == 0xca else 24
+
+        return 34 if opcode == 0xcb else 20
+
+    def Op_MOV(self, opcode: int) -> int:
+        # MOV
+        word = (opcode & 1) == 1
+
+        o1 = self.GetPcByte()
+        mod = o1 >> 6
+        mreg = o1 & 7
+
+        cycle_count = 2  # base (correct?)
+
+        # get address to write to ('seg, addr')
+        (dummy, a_valid, seg, addr, get_cycles) = self.GetRegisterMem(mreg, mod, word)
+        cycle_count += get_cycles
+
+        if word:
+            # the value follows
+            v = GetPcWord()
+            put_cycles = self.UpdateRegisterMem(mreg, mod, a_valid, seg, addr, word, v)
+            cycle_count += put_cycles
+        else:
+            # the value follows
+            v = GetPcByte()
+            put_cycles = self.UpdateRegisterMem(mreg, mod, a_valid, seg, addr, word, v)
+            cycle_count += put_cycles
+
+        return cycle_count
