@@ -1775,3 +1775,70 @@ class i8088:
         self.SetAddSubFlags(word, r1, r2, result, True, False)
 
         return cycle_count
+
+    def Op_logic_functions(self, opcode: int) -> int:
+        word = (opcode & 1) == 1
+        direction = (opcode & 2) == 2
+        o1 = GetPcByte()
+
+        mod = o1 >> 6
+        reg1 = (o1 >> 3) & 7
+        reg2 = o1 & 7
+
+        (r1, a_valid, seg, addr, get_cycles) = self.GetRegisterMem(reg2, mod, word)
+        r2 = self.GetRegister(reg1, word)
+
+        cycle_count = get_cycles + 3
+
+        result = 0
+
+        function = opcode >> 4
+        if function == 0:
+            result = r1 | r2
+        elif function == 2:
+            result = r2 & r1
+        elif function == 3:
+            result = r2 ^ r1
+
+        self.SetLogicFuncFlags(word, result)
+
+        if direction:
+            self.PutRegister(reg1, word, result)
+        else:
+            put_cycles = self.UpdateRegisterMem(reg2, mod, a_valid, seg, addr, word, result)
+            cycle_count += put_cycles
+
+        return cycle_count
+
+    def Op_OR_AND_XOR(self, opcode: int) -> int:
+        word = (opcode & 1) == 1
+
+        bLow = GetPcByte()
+        bHigh = GetPcByte() if word else 0
+
+        function = opcode >> 4
+        if function == 0:
+            self._state.al |= bLow
+
+            if word:
+                self._state.ah |= bHigh
+
+        elif function == 2:
+            self._state.al &= bLow
+
+            if word:
+                self._state.ah &= bHigh
+
+            self._state.SetFlagC(false)
+
+        elif function == 3:
+            self._state.al ^= bLow
+
+            if word:
+                self._state.ah ^= bHigh
+
+        self.SetLogicFuncFlags(word, _state.GetAX() if word else _state.al)
+
+        self._state.SetFlagP(_state.al)
+
+        return 4
