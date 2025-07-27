@@ -1072,3 +1072,90 @@ class i8088:
         self.PutRegister(reg_nr, True, old_ax)
 
         return 3
+
+    def Op_fe_ff(self, opcode: int) -> int:
+        cycle_count = 0
+
+        # DEC and others
+        word = (opcode & 1) == 1
+        o1 = GetPcByte()
+        mod = o1 >> 6
+        reg = o1 & 7
+        function = (o1 >> 3) & 7
+
+        (v, a_valid, seg, addr, get_cycles) = self.GetRegisterMem(reg, mod, word)
+        cycle_count += get_cycles
+
+        if function == 0:
+            # INC
+            v += 1
+
+            cycle_count += 3
+
+            self._state.SetFlagO(v == 0x8000 if word else v == 0x80)
+            self._state.SetFlagA((v & 15) == 0)
+
+            self._state.SetFlagS((v & 0x8000) == 0x8000 if word else (v & 0x80) == 0x80)
+            self._state.SetFlagZ(v == 0 if word else (v & 0xff) == 0)
+            self._state.SetFlagP(v)
+
+        elif function == 1:
+            # DEC
+            v -= 1
+
+            cycle_count += 3
+
+            self._state.SetFlagO(v == 0x7fff if word else v == 0x7f)
+            self._state.SetFlagA((v & 15) == 15)
+
+            self._state.SetFlagS((v & 0x8000) == 0x8000 if word else (v & 0x80) == 0x80)
+            self._state.SetFlagZ(v == 0 if word else (v & 0xff) == 0)
+            self._state.SetFlagP(v)
+
+        elif function == 2:
+            # CALL
+            self.push(self._state.ip)
+
+            self._state.rep = False
+            self._state.ip = v
+
+            cycle_count += 16
+
+        elif function == 3:
+            # CALL FAR
+            self.push(self._state.cs)
+            self.push(self._state.ip)
+
+            self._state.ip = v
+            self._state.cs = self.ReadMemWord(seg, addr + 2)
+
+            cycle_count += 37
+
+        elif function == 4:
+            # JMP NEAR
+            self._state.ip = v
+            cycle_count += 18
+
+        elif function == 5:
+            # JMP
+            self._state.cs = self.ReadMemWord(seg, (addr + 2) & 0xffff)
+            self._state.ip = self.ReadMemWord(seg, addr)
+            cycle_count += 15
+
+        elif function == 6:
+            # PUSH rmw
+            if reg == 4 and mod == 3 and word == True:  # PUSH SP
+                v -= 2
+                self.WriteMemWord(_state.ss, v, v)
+
+            else:
+                self.push(v)
+
+            cycle_count += 16
+
+        if not word:
+            v &= 0xff
+
+        put_cycles = self.UpdateRegisterMem(reg, mod, a_valid, seg, addr, word, v)
+
+        return cycle_count + put_cycles

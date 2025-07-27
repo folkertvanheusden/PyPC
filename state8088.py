@@ -197,6 +197,8 @@ class State8088:
     def SetFlagP(self, v: int):
         count = 0
 
+        v &= 0xff
+
         while v != 0:
             count += 1
             v &= v - 1
