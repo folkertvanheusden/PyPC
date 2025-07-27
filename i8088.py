@@ -583,11 +583,13 @@ class i8088:
 
     def push(self, v: int):
         self._state._sp -= 2
+        self._state._sp &= 0xffff
         self.WriteMemWord(self._state._ss, self._state._sp, v)
 
     def pop(self) -> int:
         v = self.ReadMemWord(self._state._ss, self._state._sp)
         self._state._sp += 2
+        self._state._sp &= 0xffff
         return v
 
     def InvokeInterrupt(self, instr_start: int, interrupt_nr: int, pic: bool):
@@ -1516,7 +1518,7 @@ class i8088:
         self._state.SetFlagZ(v == 0)
         self._state.SetFlagP(v)
 
-        self.PutRegister(reg, True, v)
+        self.PutRegister(reg, True, v & 0xffff)
 
         return 3
 
@@ -2076,13 +2078,13 @@ class i8088:
     def Op_MOV_mem_AL(self, opcode: int) -> int:  # 0xa2
         # MOV [...],AL
         a = self.GetPcWord()
-        WriteMemByte(self._state._segment_override if self._state._segment_override_set else self._state._ds, a, self._state.GetAL())
+        self.WriteMemByte(self._state._segment_override if self._state._segment_override_set else self._state._ds, a, self._state.GetAL())
         return 13
 
     def Op_MOV_mem_AX(self, opcode: int) -> int:  # 0xa3
         # MOV [...],AX
         a = self.GetPcWord()
-        WriteMemWord(self._state._segment_override if self._state._segment_override_set else self._state._ds, a, self._state.GetAX())
+        self.WriteMemWord(self._state._segment_override if self._state._segment_override_set else self._state._ds, a, self._state.GetAX())
         return 13
 
     def Op_PUSH_ES(self, opcode: int) -> int:  # 0x06
@@ -2154,7 +2156,7 @@ class i8088:
         # special case, see:
         # https:#c9x.me/x86/html/file_module_x86_id_269.html
         self._state._sp -= 2
-        WriteMemWord(self._state._ss, self._state._sp, self._state._sp)
+        self.WriteMemWord(self._state._ss, self._state._sp, self._state._sp)
         return 15
 
     def Op_PUSH_BP(self, opcode: int) -> int:  # 0x55
@@ -2188,22 +2190,22 @@ class i8088:
 
     def Op_POP_AX(self, opcode: int) -> int:  # 0x58
         # POP AX
-        self._state.SetAX(pop())
+        self._state.SetAX(self.pop())
         return 8
 
     def Op_POP_CX(self, opcode: int) -> int:  # 0x59
         # POP CX
-        self._state.SetCX(pop())
+        self._state.SetCX(self.pop())
         return 8
 
     def Op_POP_DX(self, opcode: int) -> int:  # 0x5a
         # POP DX
-        self._state.SetDX(pop())
+        self._state.SetDX(self.pop())
         return 8
 
     def Op_POP_BX(self, opcode: int) -> int:  # 0x5b
         # POP BX
-        self._state.SetBX(pop())
+        self._state.SetBX(self.pop())
         return 8
 
     def Op_POP_SP(self, opcode: int) -> int:  # 0x5c
@@ -2284,9 +2286,9 @@ class i8088:
         self._state.SetFlagC(False)
 
         if ((self._state.GetAL() & 0x0f) > 9) or self._state.GetFlagA() == True:
-            add_carry = self._state.GetAL() + 6 > 255
+            add_carry = self._state.GetAL() + 0x06 > 255
 
-            self._state._al += 6
+            self._state.SetAL((self._state.GetAL() + 0x06) & 0xff)
             self._state.SetFlagC(old_cf or add_carry)
             self._state.SetFlagA(True)
         else:
@@ -2295,7 +2297,7 @@ class i8088:
         upper_nibble_check = 0x9f if old_af else 0x99
 
         if old_al > upper_nibble_check or old_cf:
-            self._state._al += 0x60
+            self._state.SetAL((self._state.GetAL() + 0x60) & 0xff)
             self._state.SetFlagC(True)
         else:
             self._state.SetFlagC(False)
@@ -2312,7 +2314,7 @@ class i8088:
         self._state.SetFlagC(False)
 
         if (self._state.GetAL() & 0x0f) > 9 or self._state.GetFlagA() == True:
-            self._state._al -= 6
+            self._state.SetAL((self._state.GetAL() - 0x06) & 0xff)
             self._state.SetFlagA(True)
         else:
             self._state.SetFlagA(False)
@@ -2320,7 +2322,7 @@ class i8088:
         upper_nibble_check = 0x9f if old_af else 0x99
 
         if old_al > upper_nibble_check or old_cf:
-            self._state._al -= 0x60
+            self._state.SetAL((self._state.GetAL() - 0x60) & 0xff)
             self._state.SetFlagC(True)
 
         self._state.SetZSPFlags(self._state.GetAL())
@@ -2329,8 +2331,8 @@ class i8088:
 
     def Op_AAA(self, opcode: int) -> int:  # 0x37
         if (self._state.GetAL() & 0x0f) > 9 or self._state.GetFlagA():
-            self._state._ah += 1
-            self._state._al += 6
+            self._state.SetAL((self._state.GetAL() + 6) & 0xff)
+            self._state.SetAH((self._state.GetAH() + 1) & 0xff)
 
             self._state.SetFlagA(True)
             self._state.SetFlagC(True)
@@ -2344,8 +2346,8 @@ class i8088:
 
     def Op_AAS(self, opcode: int) -> int:  # 0x3f
         if (self._state.GetAL() & 0x0f) > 9 or self._state.GetFlagA():
-            self._state._al -= 6
-            self._state._ah -= 1
+            self._state.SetAL((self._state.GetAL() - 6) & 0xff)
+            self._state.SetAH((self._state.GetAH() - 1) & 0xff)
 
             self._state.SetFlagA(True)
             self._state.SetFlagC(True)
