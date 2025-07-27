@@ -8,6 +8,9 @@ class State8088:
         REP = 3
 
     def __init__(self):
+        self.Reset()
+
+    def Reset(self):
         self._ah: int = 0
         self._al: int = 0
         self._bh: int = 0
