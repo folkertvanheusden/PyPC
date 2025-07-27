@@ -1919,7 +1919,7 @@ class i8088:
         if PrefixMustRun():
             # STOSB
             self.WriteMemByte(self._state.es, self._state.di, self._state.al)
-            self._state.di += -1 if _state.GetFlagD() else 1
+            self._state.di += -1 if self._state.GetFlagD() else 1
             return 11
         return 0  # TODO
 
@@ -1927,7 +1927,7 @@ class i8088:
         if PrefixMustRun():
             # STOSW
             self.WriteMemWord(self._state.es, self._state.di, self._state.GetAX())
-            self._state.di += -2 if _state.GetFlagD() else 2
+            self._state.di += -2 if self._state.GetFlagD() else 2
             return 11
         return 0  # TODO
 
@@ -2042,25 +2042,25 @@ class i8088:
     def Op_MOV_AL_mem(self, opcode: int) -> int:  # 0xa0
         # MOV AL,[...]
         a = self.GetPcWord()
-        self._state.al = ReadMemByte(self._state.segment_override if _state.segment_override_set else self._state.ds, a)
+        self._state.al = ReadMemByte(self._state.segment_override if self._state.segment_override_set else self._state.ds, a)
         return 12
 
     def Op_MOV_AX_mem(self, opcode: int) -> int:  # 0xa1
         # MOV AX,[...]
         a = self.GetPcWord()
-        self._state.SetAX(ReadMemWord(self._state.segment_override if _state.segment_override_set else self._state.ds, a))
+        self._state.SetAX(ReadMemWord(self._state.segment_override if self._state.segment_override_set else self._state.ds, a))
         return 12
 
     def Op_MOV_mem_AL(self, opcode: int) -> int:  # 0xa2
         # MOV [...],AL
         a = self.GetPcWord()
-        WriteMemByte(self._state.segment_override if _state.segment_override_set else self._state.ds, a, self._state.al)
+        WriteMemByte(self._state.segment_override if self._state.segment_override_set else self._state.ds, a, self._state.al)
         return 13
 
     def Op_MOV_mem_AX(self, opcode: int) -> int:  # 0xa3
         # MOV [...],AX
         a = self.GetPcWord()
-        WriteMemWord(self._state.segment_override if _state.segment_override_set else self._state.ds, a, self._state.GetAX())
+        WriteMemWord(self._state.segment_override if self._state.segment_override_set else self._state.ds, a, self._state.GetAX())
         return 13
 
     def Op_PUSH_ES(self, opcode: int) -> int:  # 0x06
@@ -2203,3 +2203,218 @@ class i8088:
         # POP DI
         self._state.di = self.pop()
         return 8
+
+    def Op_SBB_AL_ib(self, opcode: int) -> int:  # 0x1c
+        # SBB AL,ib
+        v = self.GetPcByte()
+        flag_c = self._state.GetFlagC()
+        result = self._state.al - v
+        if flag_c:
+            result -= 1
+
+        self.SetAddSubFlags(False, self._state.al, v, result, True, flag_c)
+        self._state.al = result & 0xff
+
+        return 3
+
+    def Op_SBB_AX_iw(self, opcode: int) -> int:  # 0x1d
+        # SBB AX,iw
+        v = self.GetPcWord()
+        AX = self._state.GetAX()
+        flag_c = self._state.GetFlagC()
+        result = AX - v
+        if flag_c:
+            result -= 1
+
+        self.SetAddSubFlags(True, AX, v, result, True, flag_c)
+        self._state.SetAX(result)
+
+        return 3
+
+    def Op_SUB_AL_ib(self, opcode: int) -> int:  # 0x2c
+        # SUB AL,ib
+        v = self.GetPcByte()
+        result = self._state.al - v
+
+        self.SetAddSubFlags(False, self._state.al, v, result, True, False)
+        self._state.al = result & 0xff
+
+        return 3
+
+    def Op_SUB_AX_iw(self, opcode: int) -> int:  # 0x2d
+        # SUB AX,iw
+        v = self.GetPcWord()
+        before = self._state.GetAX()
+        result = before - v
+
+        self.SetAddSubFlags(True, before, v, result, True, False)
+        self._state.SetAX(result)
+
+        return 3
+
+    def Op_DAA(self, opcode: int) -> int:  # 0x27
+        # DAA
+        # https://www.felixcloutier.com/x86/daa
+        old_al = self._state.al
+        old_af = self._state.GetFlagA()
+        old_cf = self._state.GetFlagC()
+
+        self._state.SetFlagC(False)
+
+        if ((self._state.al & 0x0f) > 9) or self._state.GetFlagA() == True:
+            add_carry = self._state.al + 6 > 255
+
+            self._state.al += 6
+            self._state.SetFlagC(old_cf or add_carry)
+            self._state.SetFlagA(True)
+        else:
+            self._state.SetFlagA(False)
+
+        upper_nibble_check = 0x9f if old_af else 0x99
+
+        if old_al > upper_nibble_check or old_cf:
+            self._state.al += 0x60
+            self._state.SetFlagC(True)
+        else:
+            self._state.SetFlagC(False)
+
+        self._state.SetZSPFlags(self._state.al)
+
+        return 4
+
+    def Op_DAS(self, opcode: int) -> int:  # 0x2f
+        old_al = self._state.al
+        old_af = self._state.GetFlagA()
+        old_cf = self._state.GetFlagC()
+
+        self._state.SetFlagC(False)
+
+        if (self._state.al & 0x0f) > 9 or self._state.GetFlagA() == True:
+            self._state.al -= 6
+            self._state.SetFlagA(True)
+        else:
+            self._state.SetFlagA(False)
+
+        upper_nibble_check = 0x9f if old_af else 0x99
+
+        if old_al > upper_nibble_check or old_cf:
+            self._state.al -= 0x60
+            self._state.SetFlagC(True)
+
+        self._state.SetZSPFlags(self._state.al)
+
+        return 4
+
+    def Op_AAA(self, opcode: int) -> int:  # 0x37
+        if (self._state.al & 0x0f) > 9 or self._state.GetFlagA():
+            self._state.ah += 1
+            self._state.al += 6
+
+            self._state.SetFlagA(True)
+            self._state.SetFlagC(True)
+        else:
+            self._state.SetFlagA(False)
+            self._state.SetFlagC(False)
+
+        self._state.al &= 0x0f
+
+        return 8
+
+    def Op_AAS(self, opcode: int) -> int:  # 0x3f
+        if (self._state.al & 0x0f) > 9 or self._state.GetFlagA():
+            self._state.al -= 6
+            self._state.ah -= 1
+
+            self._state.SetFlagA(True)
+            self._state.SetFlagC(True)
+        else:
+            self._state.SetFlagA(False)
+            self._state.SetFlagC(False)
+
+        self._state.al &= 0x0f
+
+        return 8
+
+    def Op_JMP_np(self, opcode: int) -> int:  # 0xe9
+        # JMP np
+        offset = self.GetPcWord()
+        self._state.ip = (self._state.ip + offset) & 0xffff
+        return 15
+
+    def Op_CALL_far(self, opcode: int) -> int:  # 0x9a
+        # CALL far ptr
+        temp_ip = self.GetPcWord()
+        temp_cs = self.GetPcWord()
+
+        self.push(self._state.cs)
+        self.push(self._state.ip)
+
+        self._state.ip = temp_ip
+        self._state.cs = temp_cs
+
+        return 37
+
+    def Op_CALL(self, opcode: int) -> int:  # 0xe8
+        # CALL
+        a = self.GetPcWord()
+        self.push(self._state.ip)
+        self._state.ip = (a + self._state.ip) & 0xffff
+
+        return 16
+
+    def Op_JMP_far(self, opcode: int) -> int:  # 0xea
+        # JMP far ptr
+        temp_ip = self.GetPcWord()
+        temp_cs = self.GetPcWord()
+
+        self._state.ip = temp_ip
+        self._state.cs = temp_cs
+
+        return 15
+
+    def Op_JMP(self, opcode: int) -> int:  # 0xeb
+        # JMP
+        to = self.GetPcByte()
+        self._state.ip = (self._state.ip + self.ToSigned8(to)) & 0xffff
+        return 15
+
+    def Op_HLT(self, opcode: int) -> int:  # 0xf4
+        # HLT
+        self._state.in_hlt = True
+        return 2
+
+    def Op_CMC(self, opcode: int) -> int:  # 0xf5
+        # CMC
+        self._state.SetFlagC(not self._state.GetFlagC())
+        return 2
+
+    def Op_CLC(self, opcode: int) -> int:  # 0xf8
+        # CLC
+        self._state.SetFlagC(False)
+        return 2
+
+    def Op_STC(self, opcode: int) -> int:  # 0xf9
+        # STC
+        self._state.SetFlagC(True)
+        return 2
+
+    def Op_CLI(self, opcode: int) -> int:  # 0xfa
+        # CLI
+        self._state.SetFlagI(False) # IF
+        return 2
+
+    def Op_STI(self, opcode: int) -> int:  # 0xfb
+        # STI
+        self._state.SetFlagI(True) # IF
+        self._state.inhibit_interrupts = True
+        return 2
+
+    def Op_CLD(self, opcode: int) -> int:  # 0xfc
+        # CLD
+        self._state.SetFlagD(False)
+        return 2
+
+    def Op_STD(self, opcode: int) -> int:  # 0xfd
+        # STD
+        self._state.SetFlagD(True)
+        return 2
