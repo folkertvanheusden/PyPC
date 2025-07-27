@@ -40,13 +40,16 @@ class State8088:
 
         self._rep: bool = False
         self._rep_do_nothing: bool = False
-        self._rep_mode: RepMode = RepMode.NotSet
+        self._rep_mode: State8088.RepMode = State8088.RepMode.NotSet
         self._rep_addr: int = 0
         self._rep_opcode: int = 0
 
         self._clock: int = 0
 
         self._crash_counter: int = 0
+
+    def GetInHlt(self) -> bool:
+        return self._in_hlt
 
     def GetClock(self) -> int:
         return self._clock
@@ -66,12 +69,12 @@ class State8088:
         return out
 
     def DumpState(self):
-        Log.DoLog(f"State for clock {self.GetClock()}:", LogLevel.DEBUG)
-        Log.DoLog(f"{self.GetFlagsAsString()} AX:{self.GetAX():X4} BX:{self.GetBX():X4} CX:{self.GetCX():X4} DX:{self.GetDX():X4} SP:{self.GetSP():X4} BP:{self.GetBP():X4} SI:{self.GetSI():X4} DI:{self.GetDI():X4} flags:{self.GetFlags():X4} ES:{self.GetES():X4} CS:{self.cs:X4} SS:{self.GetSS():X4} DS:{self.GetDS():X4} IP:{self.ip:X4}", LogLevel.DEBUG)
-        Log.DoLog(f"REP: {self.rep}, do-nothing: {self.rep_do_nothing}, mode: {self.rep_mode}, addr {self.rep_addr}, opcode {self.rep_opcode}", LogLevel.DEBUG)
-        Log.DoLog(f"In HLT: {self.in_hlt}, inhibit interrupts: {self.inhibit_interrupts}", LogLevel.DEBUG)
-        Log.DoLog(f"Segment override: {self.segment_override_set}, value: {self.segment_override}", LogLevel.DEBUG)
-        Log.DoLog(f"Crash counter: {self.crash_counter}", LogLevel.DEBUG)
+        print(f"State for clock {self.GetClock()}:")
+        print(f"{self.GetFlagsAsString()} AX:{self.GetAX():4x} BX:{self.GetBX():4x} CX:{self.GetCX():4x} DX:{self.GetDX():4x} SP:{self.GetSP():4x} BP:{self.GetBP():4x} SI:{self.GetSI():4x} DI:{self.GetDI():4x} flags:{self.GetFlags():4x} ES:{self.GetES():4x} CS:{self._cs:4x} SS:{self.GetSS():4x} DS:{self.GetDS():4x} IP:{self._ip:4x}")
+        print(f"REP: {self._rep}, do-nothing: {self._rep_do_nothing}, mode: {self._rep_mode}, addr {self._rep_addr}, opcode {self._rep_opcode}")
+        print(f"In HLT: {self._in_hlt}, inhibit interrupts: {self._inhibit_interrupts}")
+        print(f"Segment override: {self._segment_override_set}, value: {self._segment_override}")
+        print(f"Crash counter: {self._crash_counter}")
 
     def SetIP(self, cs_in: int, ip_in: int):
         self._cs = cs_in

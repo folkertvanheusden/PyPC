@@ -27,7 +27,7 @@ class Memory(Device):
 
     @override
     def GetAddressList(self) -> list[Tuple[int, int]]:
-        return (0, len(self._m))
+        return [(0, len(self._m))]
 
     @override
     def IO_Write(self, port: int, value: int) -> bool:

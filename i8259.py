@@ -1,2 +1,3 @@
 class i8259:
-    pass
+    def RegisterDevice(self, mappings: dict):
+        pass

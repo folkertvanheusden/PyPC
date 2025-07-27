@@ -8,9 +8,9 @@ class IO:
     def __init__(self, b: bus.Bus, devices: List[device.Device], test_mode: bool):
         self._b = b
         self._io_map = dict()
-        self._pic = i8259()
-        self._i8237 = i8237()
-        _tick_devices = []
+        self._pic = i8259.i8259()
+        self._i8237 = i8237.i8237()
+        self._tick_devices = []
 
         for device in devices:
             device.SetDma(self._i8237)
@@ -20,8 +20,8 @@ class IO:
             if device.Ticks():
                 self._tick_devices.Add(device)
 
-        devices.Add(self._i8237)
-        devices.Add(self._pic);
+        devices.append(self._i8237)
+        devices.append(self._pic);
 
         for device in devices:
             device.RegisterDevice(self._io_map);

@@ -13,12 +13,12 @@ class Bus:
 
     def __init__(self, size: int, devices: List[device], roms: List[rom.Rom]):
         self._size = size
-        self._m = Memory(size)
+        self._m = memory.Memory(size)
 
         self._devices = devices
         self._roms = roms
 
-        self._cache: List[CacheEntry] = None
+        self._cache: List[Bus.CacheEntry] = None
         self.RecreateCache()
 
     def GetState(self) -> List[str]:
@@ -31,22 +31,22 @@ class Bus:
         for device in devices:
             segments = device.GetAddressList()
             for segment in segments:
-                entry = CacheEntry()
-                entry.start_addr = segment.Item1
-                entry.end_addr = entry.start_addr + segment.Item2
+                entry = Bus.CacheEntry()
+                entry.start_addr = segment[0]
+                entry.end_addr = entry.start_addr + segment[1]
                 entry.wait_states = device.GetWaitStateCycles()  # different per segment?
                 entry.device = device
                 self._cache.append(entry)
 
     def RecreateCache(self):
         self._cache = []
-        self._AddEntries(_devices)
+        self._AddEntries(self._devices)
 
         for rom in self._roms:
-            self._AddEntries([ rom ])
+            self._AddEntries((rom,))
 
         # last! because it is a full 1 MB
-        self._AddEntries([ _m ])
+        self._AddEntries((self._m,))
 
     def ClearMemory():
         self._m = Memory(self._size)
