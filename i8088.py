@@ -1154,7 +1154,7 @@ class i8088:
             # PUSH rmw
             if reg == 4 and mod == 3 and word == True:  # PUSH SP
                 v -= 2
-                self.WriteMemWord(_state.ss, v, v)
+                self.WriteMemWord(self._state.ss, v, v)
 
             else:
                 self.push(v)
@@ -1281,7 +1281,7 @@ class i8088:
                     v1 |= 1
 
             if count_1_of:
-                self._state.SetFlagO(_state.GetFlagC() ^ ((v1 & check_bit) == check_bit))
+                self._state.SetFlagO(self._state.GetFlagC() ^ ((v1 & check_bit) == check_bit))
 
             cycle_count += 2
 
@@ -1315,7 +1315,7 @@ class i8088:
                 self._state.SetFlagC(new_carry)
 
             if count_1_of:
-                self._state.SetFlagO(_state.GetFlagC() ^ ((v1 & check_bit) == check_bit))
+                self._state.SetFlagO(self._state.GetFlagC() ^ ((v1 & check_bit) == check_bit))
 
             cycle_count += 2
 
@@ -1511,7 +1511,7 @@ class i8088:
         sreg = opcode == 0x8e or opcode == 0x8c
         if sreg:
             word = True
-            _state.inhibit_interrupts = opcode == 0x8e
+            self._state.inhibit_interrupts = opcode == 0x8e
 
         cycle_count += 13
 
@@ -1588,7 +1588,7 @@ class i8088:
             cycle_count += put_cycles
 
         elif function == 4:
-            negate = self._state.rep_mode == RepMode.REP and _state.rep
+            negate = self._state.rep_mode == RepMode.REP and self._state.rep
             self._state.rep = False
 
             # MUL
@@ -1602,26 +1602,26 @@ class i8088:
                 self._state.SetAX(dx_ax)
                 self._state.SetDX(dx_ax >> 16)
 
-                flag = _state.GetDX() != 0
+                flag = self._state.GetDX() != 0
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
 
                 cycle_count += 118
             else:
-                result = _state.al * r1
+                result = self._state.al * r1
                 if negate:
                     result = -result
                 self._state.SetAX(result)
 
-                flag = _state.ah != 0
+                flag = self._state.ah != 0
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
 
                 cycle_count += 70
 
         elif function == 5:
-            negate = _state.rep_mode == RepMode.REP and _state.rep
-            _state.rep = False
+            negate = self._state.rep_mode == RepMode.REP and self._state.rep
+            self._state.rep = False
 
             # IMUL
             if word:
@@ -1631,8 +1631,8 @@ class i8088:
                 dx_ax = resulti
                 if negate:
                     dx_ax = -dx_ax
-                _state.SetAX(dx_ax)
-                _state.SetDX(dx_ax >> 16)
+                self._state.SetAX(dx_ax)
+                self._state.SetDX(dx_ax >> 16)
 
                 flag = ToSigned16(self._state.GetAX()) != resulti
                 self._state.SetFlagC(flag)
@@ -1641,13 +1641,13 @@ class i8088:
                 cycle_count += 128
 
             else:
-                result = ToSigned8(_state.al) * ToSigned8(r1)
+                result = ToSigned8(self._state.al) * ToSigned8(r1)
                 if negate:
                     result = -result
                 self._state.SetAX(result)
 
-                self._state.SetFlagS((_state.ah & 128) == 128)
-                flag = ToSigned8(_state.al) != ToSigned16(result)
+                self._state.SetFlagS((self._state.ah & 128) == 128)
+                flag = ToSigned8(self._state.al) != ToSigned16(result)
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
 
@@ -1659,12 +1659,12 @@ class i8088:
 
             # DIV
             if word:
-                dx_ax = (_state.GetDX() << 16) | _state.GetAX()
+                dx_ax = (self._state.GetDX() << 16) | self._state.GetAX()
 
                 if r1 == 0 or dx_ax / r1 >= 0x10000:
-                    self._state.SetZSPFlags(_state.ah)
+                    self._state.SetZSPFlags(self._state.ah)
                     self._state.SetFlagA(False)
-                    self.InvokeInterrupt(_state.ip, 0x00, False)  # divide by zero or divisor too small
+                    self.InvokeInterrupt(self._state.ip, 0x00, False)  # divide by zero or divisor too small
                 else:
                     self._state.SetAX(dx_ax / r1)
                     self._state.SetDX(dx_ax % r1)
@@ -1673,15 +1673,15 @@ class i8088:
                 ax = self._state.GetAX()
 
                 if r1 == 0 or ax / r1 >= 0x100:
-                    self._state.SetZSPFlags(_state.ah)
+                    self._state.SetZSPFlags(self._state.ah)
                     self._state.SetFlagA(False)
-                    self.InvokeInterrupt(_state.ip, 0x00, False)  # divide by zero or divisor too small
+                    self.InvokeInterrupt(self._state.ip, 0x00, False)  # divide by zero or divisor too small
                 else:
                     self._state.al = ax / r1
                     self._state.ah = ax % r1
 
         elif function == 7:
-            negate = _state.rep_mode == RepMode.REP and _state.rep
+            negate = self._state.rep_mode == RepMode.REP and self._state.rep
             self._state.rep = False
 
             self._state.SetFlagC(False)
@@ -1689,32 +1689,62 @@ class i8088:
 
             # IDIV
             if word:
-                dx_ax = (_state.GetDX() << 16) | _state.GetAX()
+                dx_ax = (self._state.GetDX() << 16) | self._state.GetAX()
                 r1s = ToSigned16(r1)
 
                 if r1s == 0 or dx_ax / r1s > 0x7fffffff or dx_ax / r1s < -0x80000000:
-                    self._state.SetZSPFlags(_state.ah)
+                    self._state.SetZSPFlags(self._state.ah)
                     self._state.SetFlagA(False)
-                    self.InvokeInterrupt(_state.ip, 0x00, False)  # divide by zero or divisor too small
+                    self.InvokeInterrupt(self._state.ip, 0x00, False)  # divide by zero or divisor too small
                 else:
                     if negate:
-                        _state.SetAX(-(dx_ax / r1s))
+                        self._state.SetAX(-(dx_ax / r1s))
                     else:
-                        _state.SetAX(dx_ax / r1s)
-                    _state.SetDX(dx_ax % r1s)
+                        self._state.SetAX(dx_ax / r1s)
+                    self._state.SetDX(dx_ax % r1s)
             else:
-                ax = ToSigned16(_state.GetAX())
+                ax = ToSigned16(self._state.GetAX())
                 r1s = ToSigned8(r1)
 
                 if r1s == 0 or ax / r1s > 0x7fff or ax / r1s < -0x8000:
-                    _state.SetZSPFlags(_state.ah)
-                    _state.SetFlagA(False)
-                    self.InvokeInterrupt(_state.ip, 0x00, False)  # divide by zero or divisor too small
+                    self._state.SetZSPFlags(self._state.ah)
+                    self._state.SetFlagA(False)
+                    self.InvokeInterrupt(self._state.ip, 0x00, False)  # divide by zero or divisor too small
                 else:
                     if negate:
-                        _state.al = -(ax / r1s) & 0xff
+                        self._state.al = -(ax / r1s) & 0xff
                     else:
-                        _state.al = (ax / r1s) & 0xff
-                    _state.ah = (ax % r1s) & 0xff
+                        self._state.al = (ax / r1s) & 0xff
+                    self._state.ah = (ax % r1s) & 0xff
 
         return cycle_count + 4
+
+    def Op_INT(self, opcode: int) -> int:
+        # INT 0x..
+        if opcode != 0xce or self._state.GetFlagO():
+            int = 0
+
+            if opcode == 0xcc:
+                int = 3
+            elif opcode == 0xce:
+                int = 4
+            else:
+                int = GetPcByte()
+
+            addr = (int * 4) & 0xffff
+
+            self.push(self._state.flags)
+            self.push(self._state.cs)
+            if self._state.rep:
+                self.push(self._state.rep_addr)
+            else:
+                self.push(self._state.ip)
+
+            self._state.SetFlagI(False)
+
+            self._state.ip = self.ReadMemWord(0, addr)
+            self._state.cs = self.ReadMemWord(0, addr + 2)
+
+            return 51  # 71  TODO
+
+        return 0  # TODO
