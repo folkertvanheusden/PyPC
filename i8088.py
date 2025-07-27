@@ -2418,3 +2418,132 @@ class i8088:
         # STD
         self._state.SetFlagD(True)
         return 2
+
+    def Op_CBW(self, opcode: int) -> int:  # 0x98
+        # CBW
+        new_value = self._state.al
+        if (self._state.al & 128) == 128:
+            new_value |= 0xff00
+        self._state.SetAX(new_value)
+
+        return 2
+
+    def Op_CWD(self, opcode: int) -> int:  # 0x99
+        # CWD
+        if (self._state.ah & 128) == 128:
+            self._state.SetDX(0xffff)
+        else:
+            self._state.SetDX(0)
+
+        return 5
+
+    def Op_LODSB(self, opcode: int) -> int:  # 0xac
+        if PrefixMustRun():
+            # LODSB
+            self._state.al = self.ReadMemByte(self._state.segment_override if _state.segment_override_set else self._state.ds, self._state.si)
+            self._state.si += -1 if self._state.GetFlagD() else 1
+
+            return 5
+
+        return 0  # TODO
+
+    def Op_LODSW(self, opcode: int) -> int:  # 0xad
+        if PrefixMustRun():
+            # LODSW
+            self._state.SetAX(self.ReadMemWord(self._state.segment_override if _state.segment_override_set else self._state.ds, self._state.si))
+            self._state.si += -2 if self._state.GetFlagD() else 2
+
+            return 5
+
+        return 0  # TODO
+
+    def Op_LEA(self, opcode: int) -> int:  # 0x8d
+        # LEA
+        o1 = self.GetPcByte()
+        mod = o1 >> 6
+        reg = (o1 >> 3) & 7
+        rm = o1 & 7
+
+        (val, a_valid, seg, addr, get_cycles) = self.GetRegisterMem(rm, mod, True)
+        self.PutRegister(reg, True, addr)
+
+        return get_cycles + 3
+
+    def Op_SAHF(self, opcode: int) -> int:  # 0x9e
+        # SAHF
+        keep = self._state.flags & 0b1111111100101010
+        add = self._state.ah & 0b11010101
+
+        self._state.flags = keep | add
+        self._state.FixFlags()
+
+        return 4
+
+    def Op_LAHF(self, opcode: int) -> int:  # 0x9f
+        # LAHF
+        self._state.ah = self._state.flags
+        return 2
+
+    def Op_SCASB(self, opcode: int) -> int:  # 0xae
+        if PrefixMustRun():
+            # SCASB
+            v = self.ReadMemByte(self._state.es, self._state.di)
+            result = self._state.al - v
+            self.SetAddSubFlags(False, self._state.al, v, result, True, False)
+            self._state.di += -1 if self._state.GetFlagD() else 1
+
+            return 15
+
+        return 0
+
+    def Op_SCASW(self, opcode: int) -> int:  # 0xaf
+        if PrefixMustRun():
+            # SCASW
+            ax = self._state.GetAX()
+            v = self.ReadMemWord(self._state.es, self._state.di)
+            result = ax - v
+            self.SetAddSubFlags(True, ax, v, result, True, False)
+            self._state.di += -2 if self._state.GetFlagD() else 2
+
+            return 15
+
+        return 0
+
+    def Op_AAM(self, opcode: int) -> int:  # 0xd4
+        # AAM
+        b2 = self.GetPcByte()
+
+        if b2 != 0:
+            self._state.ah = self._state.al / b2
+            self._state.al %= b2
+
+            self._state.SetZSPFlags(self._state.al)
+        else:
+            self._state.SetZSPFlags(0)
+
+            self._state.SetFlagO(False)
+            self._state.SetFlagA(False)
+            self._state.SetFlagC(False)
+
+            self.InvokeInterrupt(self._state.ip, 0x00, False)
+
+        return 83
+
+    def Op_AAD(self, opcode: int) -> int:  # 0xd5
+        # AAD
+        b2 = self.GetPcByte()
+
+        self._state.al = (self._state.al + self._state.ah * b2) & 0xff
+        self._state.ah = 0
+        self._state.SetZSPFlags(self._state.al)
+
+        return 60
+
+    def Op_SALC(self, opcode: int) -> int:  # 0xd6
+        # SALC
+        if self._state.GetFlagC():
+            self._state.al = 0xff
+        else:
+            self._state.al = 0x00
+
+        return 2  # TODO
