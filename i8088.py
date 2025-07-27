@@ -872,7 +872,7 @@ class i8088:
             use_flag_c = True
 
         self.SetAddSubFlags(True, before, v, result, False, flag_c if use_flag_c else False)
-        self._state.SetAX(result)
+        self._state.SetAX(result & 0xffff)
 
         return 3
 
@@ -2249,7 +2249,7 @@ class i8088:
             result -= 1
 
         self.SetAddSubFlags(True, AX, v, result, True, flag_c)
-        self._state.SetAX(result)
+        self._state.SetAX(result & 0xffff)
 
         return 3
 
