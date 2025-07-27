@@ -16,7 +16,7 @@ class i8088:
 
         self._state: state8088.State8088 = state8088.State8088()
 
-        self._b = b;
+        self._b = b
         self._devices = devices
         self._io = IO(b, devices, not run_IO)
         self._terminate_on_off_the_rails = run_IO
@@ -828,6 +828,26 @@ class i8088:
 
         return 3
 
+    def Op_ADD_AX_xxxx(self, opcode: int) -> int:  # 0x05, 0x15
+        # ADD AX,xxxx
+        v = self.GetPcWord()
+
+        flag_c = self._state.GetFlagC()
+        use_flag_c = False
+        before = self._state.GetAX()
+
+        result = before + v
+
+        if opcode == 0x15:
+            if flag_c:
+                result += 1
+            use_flag_c = True
+
+        self.SetAddSubFlags(True, before, v, result, False, flag_c if use_flag_c else False)
+        self._state.SetAX(result)
+
+        return 3
+
     def Op_MOV_reg_ib(self, opcode: int) -> int:  # 0xb.
         # MOV reg,ib
         reg = opcode & 0x07
@@ -934,3 +954,121 @@ class i8088:
             cycles += put_cycles
 
         return 3 + cycles
+
+    def Op_ADD_SUB_ADC_SBC(self, opcode: int) -> int:
+        cycle_count = 0
+
+        word = (opcode & 1) == 1
+        direction = (opcode & 2) == 2
+        o1 = GetPcByte()
+
+        mod = o1 >> 6
+        reg1 = (o1 >> 3) & 7
+        reg2 = o1 & 7
+
+        (r1, a_valid, seg, addr, get_cycles) = self.GetRegisterMem(reg2, mod, word)
+        r2 = self.GetRegister(reg1, word)
+
+        cycle_count += get_cycles
+
+        result = 0
+        is_sub = False
+        apply = True
+        use_flag_c = False
+
+        if opcode <= 0x03:
+            result = r1 + r2
+            cycle_count += 4
+        elif opcode >= 0x10 and opcode <= 0x13:
+            use_flag_c = True
+            result = r1 + r2 + _state.GetFlagC()
+            cycle_count += 4
+        else:
+            if direction:
+                result = r2 - r1
+            else:
+                result = r1 - r2
+
+            is_sub = True
+
+            if opcode >= 0x38 and opcode <= 0x3b:
+                apply = False
+            elif opcode >= 0x28 and opcode <= 0x2b:
+                  pass
+            else:  # 0x18...0x1b
+                use_flag_c = True
+                result -= _state.GetFlagC()
+
+            cycle_count += 4
+
+        if direction:
+            SetAddSubFlags(word, r2, r1, result, is_sub, _state.GetFlagC() if use_flag_c else False)
+        else:
+            SetAddSubFlags(word, r1, r2, result, is_sub, _state.GetFlagC() if use_flag_c else False)
+
+        # 0x38...0x3b are CMP
+        if apply:
+            if direction:
+                self.PutRegister(reg1, word, result)
+            else:
+                override_to_ss = a_valid and word and self._state.segment_override_set == False and ((reg2 == 2 or reg2 == 3) and mod == 0)
+                if override_to_ss:
+                    seg = self._state.ss
+
+                put_cycles = self.UpdateRegisterMem(reg2, mod, a_valid, seg, addr, word, result)
+                cycle_count += put_cycles
+
+        return cycle_count
+
+    def Op_TEST(self, opcode: int) -> int:  # 0x84, 0x85
+        # TEST ...,...
+        word = (opcode & 1) == 1
+        o1 = self.GetPcByte()
+
+        mod = o1 >> 6
+        reg1 = (o1 >> 3) & 7
+        reg2 = o1 & 7
+
+        (r1, a_valid, seg, addr, cycles) = self.GetRegisterMem(reg2, mod, word)
+        r2 = self.GetRegister(reg1, word)
+
+        if word:
+            result = r1 & r2
+            self.SetLogicFuncFlags(True, result)
+        else:
+            result = (r1 & r2) & 0xff
+            self.SetLogicFuncFlags(False, result)
+
+        self._state.SetFlagC(False)
+
+        return 3 + cycles
+
+    def Op_XCHG(self, opcode: int) -> int:
+        # XCHG
+        word = (opcode & 1) == 1
+        o1 = self.GetPcByte()
+
+        mod = o1 >> 6
+        reg1 = (o1 >> 3) & 7
+        reg2 = o1 & 7
+
+        (r1, a_valid, seg, addr, get_cycles) = self.GetRegisterMem(reg2, mod, word)
+        r2 = self.GetRegister(reg1, word)
+
+        put_cycles = self.UpdateRegisterMem(reg2, mod, a_valid, seg, addr, word, r2)
+
+        self.PutRegister(reg1, word, r1)
+
+        return 3 + get_cycles + put_cycles
+
+    def Op_XCHG_AX(self, opcode: int) -> int:  # 91...97
+        # XCHG AX,...
+        reg_nr = opcode & 0x07
+        v = self.GetRegister(reg_nr, True)
+
+        old_ax = self._state.GetAX()
+        self._state.SetAX(v)
+
+        self.PutRegister(reg_nr, True, old_ax)
+
+        return 3
