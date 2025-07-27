@@ -438,27 +438,27 @@ class i8088:
             if w:
                 self._state.SetAX(val)
             else:
-                self._state.SetAL(val)
+                self._state.SetAL(val & 0xff)
         elif reg == 1:
             if w:
                 self._state.SetCX(val)
             else:
-                self._state._cl = val
+                self._state._cl = val & 0xff
         elif reg == 2:
             if w:
                 self._state.SetDX(val)
             else:
-                self._state._dl = val
+                self._state._dl = val & 0xff
         elif reg == 3:
             if w:
                 self._state.SetBX(val)
             else:
-                self._state._bl = val
+                self._state._bl = val & 0xff
         elif reg == 4:
             if w:
                 self._state._sp = val
             else:
-                self._state.SetAH(val)
+                self._state.SetAH(val & 0xff)
         elif reg == 5:
             if w:
                 self._state._bp = val
@@ -975,12 +975,12 @@ class i8088:
             apply = False
 
         if is_logic:
-            self.SetLogicFuncFlags(word, result)
+            self.SetLogicFuncFlags(word, result & 0xffff)
         else:
             self.SetAddSubFlags(word, r1, r2, result, is_sub, self._state.GetFlagC() if use_flag_c else False)
 
         if apply:
-            put_cycles = self.UpdateRegisterMem(reg, mod, a_valid, seg, addr, word, result)
+            put_cycles = self.UpdateRegisterMem(reg, mod, a_valid, seg, addr, word, result & 0xffff)
             cycles += put_cycles
 
         return 3 + cycles
