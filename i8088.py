@@ -206,11 +206,11 @@ class i8088:
         # https://www.righto.com/2023/02/silicon-reverse-engineering-intel-8086.html
         self._state.SetFlagBit(1)
 
-    def ToSigned8(n):
+    def ToSigned8(self, n):
         n &= 0xff
         return (n ^ 0x80) - 0x80
 
-    def ToSigned16(n):
+    def ToSigned16(self, n):
         n &= 0xffff
         return (n ^ 0x8000) - 0x8000
 
@@ -336,7 +336,7 @@ class i8088:
         else:
             a, cycles = self.GetDoubleRegisterMod00(reg)
 
-        disp = self.GetPcWord() if word else self.GetPcByte()
+        disp = self.ToSigned16(self.GetPcWord()) if word else self.ToSigned8(self.GetPcByte())
 
         return ((a + disp) & 0xffff, cycles, override_segment, new_segment)
 
@@ -423,6 +423,8 @@ class i8088:
 
     def UpdateRegisterMem(self, reg: int, mod: int, a_valid: bool, seg: int, addr: int, word: bool, v: int) -> int:
         if a_valid:
+            assert seg >= 0 and seg <= 65535
+            assert addr >= 0 and addr <= 65535
             if word:
                 self.WriteMemWord(seg, addr, v)
             else:
@@ -1198,7 +1200,7 @@ class i8088:
         cx -= 1
         self._state.SetCX(cx)
 
-        newAddresses = (self._state._ip + ToSigned8(to)) & 0xffff
+        newAddresses = (self._state._ip + self.ToSigned8(to)) & 0xffff
 
         cycle_count += 4
 
@@ -1258,7 +1260,7 @@ class i8088:
             state = self._state.GetFlagZ() == False and self._state.GetFlagS() == self._state.GetFlagO()
 
         if state:
-            self._state._ip = (self._state._ip + ToSigned8(to)) & 0xffff
+            self._state._ip = (self._state._ip + self.ToSigned8(to)) & 0xffff
             return 16
 
         return 4
@@ -1645,8 +1647,8 @@ class i8088:
 
             # IMUL
             if word:
-                ax = ToSigned16(self._state.GetAX())
-                resulti = ax * ToSigned16(r1)
+                ax = self.ToSigned16(self._state.GetAX())
+                resulti = ax * self.ToSigned16(r1)
 
                 dx_ax = resulti
                 if negate:
@@ -1654,20 +1656,20 @@ class i8088:
                 self._state.SetAX(dx_ax)
                 self._state.SetDX(dx_ax >> 16)
 
-                flag = ToSigned16(self._state.GetAX()) != resulti
+                flag = self.ToSigned16(self._state.GetAX()) != resulti
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
 
                 cycle_count += 128
 
             else:
-                result = ToSigned8(self._state.GetAL()) * ToSigned8(r1)
+                result = self.ToSigned8(self._state.GetAL()) * self.ToSigned8(r1)
                 if negate:
                     result = -result
                 self._state.SetAX(result)
 
                 self._state.SetFlagS((self._state.GetAH() & 128) == 128)
-                flag = ToSigned8(self._state.GetAL()) != ToSigned16(result)
+                flag = self.ToSigned8(self._state.GetAL()) != self.ToSigned16(result)
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
 
@@ -1710,7 +1712,7 @@ class i8088:
             # IDIV
             if word:
                 dx_ax = (self._state.GetDX() << 16) | self._state.GetAX()
-                r1s = ToSigned16(r1)
+                r1s = self.ToSigned16(r1)
 
                 if r1s == 0 or dx_ax / r1s > 0x7fffffff or dx_ax / r1s < -0x80000000:
                     self._state.SetZSPFlags(self._state.GetAH())
@@ -1723,8 +1725,8 @@ class i8088:
                         self._state.SetAX(dx_ax / r1s)
                     self._state.SetDX(dx_ax % r1s)
             else:
-                ax = ToSigned16(self._state.GetAX())
-                r1s = ToSigned8(r1)
+                ax = self.ToSigned16(self._state.GetAX())
+                r1s = self.ToSigned8(r1)
 
                 if r1s == 0 or ax / r1s > 0x7fff or ax / r1s < -0x8000:
                     self._state.SetZSPFlags(self._state.GetAH())
@@ -1953,7 +1955,7 @@ class i8088:
 
     def Op_JCXZ(self, opcode: int) -> int:  # 0xe3
         # JCXZ np
-        offset = ToSigned8(self.GetPcByte())
+        offset = self.ToSigned8(self.GetPcByte())
 
         addr = self._state._ip + offset
 
@@ -2096,7 +2098,7 @@ class i8088:
 
     def Op_PUSH_CS(self, opcode: int) -> int:  # 0x0e
         # PUSH CS
-        push(self._state._cs)
+        self.push(self._state._cs)
         return 15
 
     def Op_POP_CS(self, opcode: int) -> int:  # 0x0f
@@ -2107,7 +2109,7 @@ class i8088:
 
     def Op_PUSH_SS(self, opcode: int) -> int:  # 0x16
         # PUSH SS
-        push(self._state._ss)
+        self.push(self._state._ss)
         return 15
 
     def Op_POP_SS(self, opcode: int) -> int:  # 0x17
@@ -2118,7 +2120,7 @@ class i8088:
 
     def Op_PUSH_DS(self, opcode: int) -> int:  # 0x1e
         # PUSH DS
-        push(self._state._ds)
+        self.push(self._state._ds)
         return 11  # 15
 
     def Op_POP_DS(self, opcode: int) -> int:  # 0x1f
@@ -2129,22 +2131,22 @@ class i8088:
 
     def Op_PUSH_AX(self, opcode: int) -> int:  # 0x50
         # PUSH AX
-        push(self._state.GetAX())
+        self.push(self._state.GetAX())
         return 15
 
     def Op_PUSH_CX(self, opcode: int) -> int:  # 0x51
         # PUSH CX
-        push(self._state.GetCX())
+        self.push(self._state.GetCX())
         return 15
 
     def Op_PUSH_DX(self, opcode: int) -> int:  # 0x52
         # PUSH DX
-        push(self._state.GetDX())
+        self.push(self._state.GetDX())
         return 15
 
     def Op_PUSH_BX(self, opcode: int) -> int:  # 0x53
         # PUSH BX
-        push(self._state.GetBX())
+        self.push(self._state.GetBX())
         return 15
 
     def Op_PUSH_SP(self, opcode: int) -> int:  # 0x54
@@ -2157,17 +2159,17 @@ class i8088:
 
     def Op_PUSH_BP(self, opcode: int) -> int:  # 0x55
         # PUSH BP
-        push(self._state._bp)
+        self.push(self._state._bp)
         return 15
 
     def Op_PUSH_SI(self, opcode: int) -> int:  # 0x56
         # PUSH SI
-        push(self._state._si)
+        self.push(self._state._si)
         return 15
 
     def Op_PUSH_DI(self, opcode: int) -> int:  # 0x57
         # PUSH DI
-        push(self._state._di)
+        self.push(self._state._di)
         return 15
 
     def Op_POP_rmw(self, opcode: int) -> int:  # 0x8f
@@ -2181,7 +2183,7 @@ class i8088:
 
     def Op_PUSHF(self, opcode: int) -> int:  # 0x9c
         # PUSHF
-        push(self._state._flags)
+        self.push(self._state._flags)
         return 14
 
     def Op_POP_AX(self, opcode: int) -> int:  # 0x58
@@ -2395,7 +2397,7 @@ class i8088:
     def Op_JMP(self, opcode: int) -> int:  # 0xeb
         # JMP
         to = self.GetPcByte()
-        self._state._ip = (self._state._ip + ToSigned8(to)) & 0xffff
+        self._state._ip = (self._state._ip + self.ToSigned8(to)) & 0xffff
         return 15
 
     def Op_HLT(self, opcode: int) -> int:  # 0xf4

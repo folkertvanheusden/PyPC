@@ -130,7 +130,7 @@ for test in j:
     count += 1
 
     if failed:
-        print(f'FAILED: {test["name"]}')
+        print(f'FAILED: {test["name"]} opcodes: {", ".join(opcodes)}')
         print('---')
 
 print(f'Total count: {count}, ok: {ok}, failed: {(count - ok) / count * 100:.2f}%')
