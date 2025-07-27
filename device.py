@@ -1,13 +1,12 @@
 from typing import List, Tuple
 import abc
-import bus
 import i8237
 import i8259
 
 class Device(abc.ABC):
     def __init__(self):
         self._pic: i8259 = None
-        self._b: bus.Bus = None
+        self._b = None  # cannot ': bus.Bus' because of circular dependencies
         self._next_interrupt: List[int] = []
         self._clock = 0
 
@@ -74,5 +73,5 @@ class Device(abc.ABC):
     def SetPic(self, pic_instance: i8259):
         self._pic = pic_instance
 
-    def SetBus(self, bus_instance: bus.Bus):
+    def SetBus(self, bus_instance):
         self._b = bus_instance
