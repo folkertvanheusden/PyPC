@@ -77,6 +77,8 @@ class State8088:
         print(f"Crash counter: {self._crash_counter}")
 
     def SetIP(self, cs_in: int, ip_in: int):
+        assert cs_in >= 0 and cs_in <= 65535
+        assert ip_in >= 0 and ip_in <= 65535
         self._cs = cs_in
         self._ip = ip_in
 
@@ -85,10 +87,25 @@ class State8088:
         self._flags |= 2  # bit 1 is always set
         self._flags |= 0xf000  # upper 4 bits are always 1
 
+    def GetAL(self) -> int:
+        return self._al
+
+    def SetAL(self, v: int):
+        assert v >= 0 and v <= 255
+        self._al = v
+
+    def GetAH(self) -> int:
+        return self._ah
+
+    def SetAH(self, v: int):
+        assert v >= 0 and v <= 255
+        self._ah = v
+
     def GetAX(self) -> int:
         return (self._ah << 8) | self._al
 
     def SetAX(self, v: int):
+        assert v >= 0 and v <= 65535
         self._ah = v >> 8
         self._al = v & 255
 
@@ -96,6 +113,7 @@ class State8088:
         return (self._bh << 8) | self._bl
 
     def SetBX(self, v: int):
+        assert v >= 0 and v <= 65535
         self._bh = v >> 8
         self._bl = v & 255
 
@@ -103,6 +121,7 @@ class State8088:
         return (self._ch << 8) | self._cl
 
     def SetCX(self, v: int):
+        assert v >= 0 and v <= 65535
         self._ch = v >> 8
         self._cl = v & 255
 
@@ -110,37 +129,48 @@ class State8088:
         return (self._dh << 8) | self._dl
 
     def SetDX(self, v: int):
+        assert v >= 0 and v <= 65535
         self._dh = v >> 8
         self._dl = v & 255
 
     def SetSS(self, v: int):
+        assert v >= 0 and v <= 65535
         self._ss = v
 
     def SetCS(self, v: int):
+        assert v >= 0 and v <= 65535
         self._cs = v
 
     def SetDS(self, v: int):
+        assert v >= 0 and v <= 65535
         self._ds = v
 
     def SetES(self, v: int):
+        assert v >= 0 and v <= 65535
         self._es = v
 
     def SetSP(self, v: int):
+        assert v >= 0 and v <= 65535
         self._sp = v
 
     def SetBP(self, v: int):
+        assert v >= 0 and v <= 65535
         self._bp = v
 
     def SetSI(self, v: int):
+        assert v >= 0 and v <= 65535
         self._si = v
 
     def SetDI(self, v: int):
+        assert v >= 0 and v <= 65535
         self._di = v
 
     def SetIP(self, v: int):
+        assert v >= 0 and v <= 65535
         self._ip = v
 
     def SetFlags(self, v: int):
+        assert v >= 0 and v <= 65535
         self._flags = v
 
     def GetSS(self) -> int:
@@ -174,6 +204,7 @@ class State8088:
         return self._flags
 
     def SetZSPFlags(self, v: int):
+        assert v >= 0 and v <= 65535
         self.SetFlagZ(v == 0)
         self.SetFlagS((v & 0x80) == 0x80)
         self.SetFlagP(v)

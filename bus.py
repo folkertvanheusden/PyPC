@@ -60,6 +60,7 @@ class Bus:
         return (0xff, 1)  # TODO
 
     def WriteByte(self, address: int, v: int) -> int:
+        assert v >= 0 and v <= 255
         for entry in self._cache:
             if address >= entry.start_addr and address < entry.end_addr:
                 entry.device.WriteByte(address, v)

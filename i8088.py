@@ -8,7 +8,7 @@ import state8088
 class i8088:
     def __init__(self, b: bus.Bus, devices: List[device.Device], run_IO: bool):
         self._terminate_on_off_the_rails: bool = False
-        self._MemMask: int = 0x00ffffff
+        self._MemMask: int = 0x000fffff
 
         self._breakpoints = set()
         self._ignore_breakpoints: bool = False
@@ -206,11 +206,11 @@ class i8088:
         # https://www.righto.com/2023/02/silicon-reverse-engineering-intel-8086.html
         self._state.SetFlagBit(1)
 
-    def ToSigned8(self, n):
+    def ToSigned8(n):
         n &= 0xff
         return (n ^ 0x80) - 0x80
 
-    def ToSigned16(self, n):
+    def ToSigned16(n):
         n &= 0xffff
         return (n ^ 0x8000) - 0x8000
 
@@ -231,7 +231,7 @@ class i8088:
         self._state._clock += self._b.WriteByte(a, v)
 
     def WriteMemWord(self, segment: int, offset: int, v: int):
-        self.WriteMemByte(segment, offset, v);
+        self.WriteMemByte(segment, offset, v & 0xff);
         self.WriteMemByte(segment, (offset + 1) & 0xffff, v >> 8)
 
     def GetPcByte(self) -> int:
@@ -246,8 +246,11 @@ class i8088:
         return v
 
     def SetAddSubFlags(self, word: bool, r1: int, r2: int, result: int, issub: bool, flag_c: bool):
+        assert r1 >= 0 and r1 <= (65535 if word else 255)
+        assert r2 >= 0 and r2 <= (65535 if word else 255)
+
         in_reg_result = (result & 0xffff) if word else (result & 0xff)
-        u_result = abs(result)
+        u_result = result & 0xffffffff
 
         mask = 0x8000 if word else 0x80
 
@@ -257,7 +260,7 @@ class i8088:
         value_sign = (r2 & mask) == mask
         after_sign = (u_result & mask) == mask
 
-        self._state.SetFlagO(after_sign != before_sign and ((before_sign != value_sign and issub) or (before_sign == value_sign and issub == False)))
+        self._state.SetFlagO(after_sign != before_sign and ((before_sign != value_sign and issub == True) or (before_sign == value_sign and issub == False)))
         self._state.SetFlagC(u_result >= 0x10000 if word else u_result >= 0x100)
         self._state.SetFlagS((in_reg_result & mask) != 0)
         self._state.SetFlagZ(in_reg_result == 0)
@@ -289,7 +292,7 @@ class i8088:
                 return self._state._di
         else:
             if reg == 0:
-                return self._state._al
+                return self._state.GetAL()
             if reg == 1:
                 return self._state._cl
             if reg == 2:
@@ -297,7 +300,7 @@ class i8088:
             if reg == 3:
                 return self._state._bl
             if reg == 4:
-                return self._state._ah
+                return self._state.GetAH()
             if reg == 5:
                 return self._state._ch
             if reg == 6:
@@ -423,7 +426,7 @@ class i8088:
             if word:
                 self.WriteMemWord(seg, addr, v)
             else:
-                self.WriteMemByte(seg, addr, v)
+                self.WriteMemByte(seg, addr, v & 0xff)
             return 4
 
         return self.PutRegisterMem(reg, mod, word, v)
@@ -433,7 +436,7 @@ class i8088:
             if w:
                 self._state.SetAX(val)
             else:
-                self._state._al = val
+                self._state.SetAL(val)
         elif reg == 1:
             if w:
                 self._state.SetCX(val)
@@ -453,7 +456,7 @@ class i8088:
             if w:
                 self._state._sp = val
             else:
-                self._state._ah = val
+                self._state.SetAH(val)
         elif reg == 5:
             if w:
                 self._state._bp = val
@@ -838,16 +841,16 @@ class i8088:
         flag_c = self._state.GetFlagC()
         use_flag_c = False
 
-        result = self._state._al + v
+        result = self._state.GetAL() + v
 
         if opcode == 0x14:
             if flag_c:
                 result += 1
             use_flag_c = True
 
-        self.SetAddSubFlags(False, self._state._al, v, result, False, flag_c if use_flag_c else False)
+        self.SetAddSubFlags(False, self._state.GetAL(), v, result, False, flag_c if use_flag_c else False)
 
-        self._state._al = result & 255
+        self._state.SetAL(result & 255)
 
         return 3
 
@@ -1024,13 +1027,15 @@ class i8088:
 
             cycle_count += 4
 
+        new_flag_c = self._state.GetFlagC() if use_flag_c else False
         if direction:
-            self.SetAddSubFlags(word, r2, r1, result, is_sub, self._state.GetFlagC() if use_flag_c else False)
+            self.SetAddSubFlags(word, r2, r1, result, is_sub, new_flag_c)
         else:
-            self.SetAddSubFlags(word, r1, r2, result, is_sub, self._state.GetFlagC() if use_flag_c else False)
+            self.SetAddSubFlags(word, r1, r2, result, is_sub, new_flag_c)
 
         # 0x38...0x3b are CMP
         if apply:
+            result &= 0xffff if word else 0xff
             if direction:
                 self.PutRegister(reg1, word, result)
             else:
@@ -1253,7 +1258,7 @@ class i8088:
             state = self._state.GetFlagZ() == False and self._state.GetFlagS() == self._state.GetFlagO()
 
         if state:
-            self._state._ip = (self._state._ip + self.ToSigned8(to)) & 0xffff
+            self._state._ip = (self._state._ip + ToSigned8(to)) & 0xffff
             return 16
 
         return 4
@@ -1623,12 +1628,12 @@ class i8088:
 
                 cycle_count += 118
             else:
-                result = self._state._al * r1
+                result = self._state.GetAL() * r1
                 if negate:
                     result = -result
                 self._state.SetAX(result)
 
-                flag = self._state._ah != 0
+                flag = self._state.GetAH() != 0
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
 
@@ -1656,13 +1661,13 @@ class i8088:
                 cycle_count += 128
 
             else:
-                result = ToSigned8(self._state._al) * ToSigned8(r1)
+                result = ToSigned8(self._state.GetAL()) * ToSigned8(r1)
                 if negate:
                     result = -result
                 self._state.SetAX(result)
 
-                self._state.SetFlagS((self._state._ah & 128) == 128)
-                flag = ToSigned8(self._state._al) != ToSigned16(result)
+                self._state.SetFlagS((self._state.GetAH() & 128) == 128)
+                flag = ToSigned8(self._state.GetAL()) != ToSigned16(result)
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
 
@@ -1677,7 +1682,7 @@ class i8088:
                 dx_ax = (self._state.GetDX() << 16) | self._state.GetAX()
 
                 if r1 == 0 or dx_ax / r1 >= 0x10000:
-                    self._state.SetZSPFlags(self._state._ah)
+                    self._state.SetZSPFlags(self._state.GetAH())
                     self._state.SetFlagA(False)
                     self.InvokeInterrupt(self._state._ip, 0x00, False)  # divide by zero or divisor too small
                 else:
@@ -1688,12 +1693,12 @@ class i8088:
                 ax = self._state.GetAX()
 
                 if r1 == 0 or ax / r1 >= 0x100:
-                    self._state.SetZSPFlags(self._state._ah)
+                    self._state.SetZSPFlags(self._state.GetAH())
                     self._state.SetFlagA(False)
                     self.InvokeInterrupt(self._state._ip, 0x00, False)  # divide by zero or divisor too small
                 else:
-                    self._state._al = ax / r1
-                    self._state._ah = ax % r1
+                    self._state.SetAL(ax / r1)
+                    self._state.SetAH(ax % r1)
 
         elif function == 7:
             negate = self._state._rep_mode == RepMode.REP and self._state._rep
@@ -1708,7 +1713,7 @@ class i8088:
                 r1s = ToSigned16(r1)
 
                 if r1s == 0 or dx_ax / r1s > 0x7fffffff or dx_ax / r1s < -0x80000000:
-                    self._state.SetZSPFlags(self._state._ah)
+                    self._state.SetZSPFlags(self._state.GetAH())
                     self._state.SetFlagA(False)
                     self.InvokeInterrupt(self._state._ip, 0x00, False)  # divide by zero or divisor too small
                 else:
@@ -1722,15 +1727,15 @@ class i8088:
                 r1s = ToSigned8(r1)
 
                 if r1s == 0 or ax / r1s > 0x7fff or ax / r1s < -0x8000:
-                    self._state.SetZSPFlags(self._state._ah)
+                    self._state.SetZSPFlags(self._state.GetAH())
                     self._state.SetFlagA(False)
                     self.InvokeInterrupt(self._state._ip, 0x00, False)  # divide by zero or divisor too small
                 else:
                     if negate:
-                        self._state._al = -(ax / r1s) & 0xff
+                        self._state.SetAL(-(ax / r1s) & 0xff)
                     else:
-                        self._state._al = (ax / r1s) & 0xff
-                    self._state._ah = (ax % r1s) & 0xff
+                        self._state.SetAL((ax / r1s) & 0xff)
+                    self._state.SetAH((ax % r1s) & 0xff)
 
         return cycle_count + 4
 
@@ -1782,7 +1787,7 @@ class i8088:
             result = r1 - r2
 
         elif opcode == 0x3c:
-            r1 = self._state._al
+            r1 = self._state.GetAL()
             r2 = self.GetPcByte()
 
             result = r1 - r2
@@ -1852,9 +1857,9 @@ class i8088:
             if word:
                 self._state._ah ^= bHigh
 
-        self.SetLogicFuncFlags(word, self._state.GetAX() if word else self._state._al)
+        self.SetLogicFuncFlags(word, self._state.GetAX() if word else self._state.GetAL())
 
-        self._state.SetFlagP(self._state._al)
+        self._state.SetFlagP(self._state.GetAL())
 
         return 4
 
@@ -1894,7 +1899,7 @@ class i8088:
     def Op_IN_AL_DX(self, opcode: int) -> int:  # 0xec
         # IN AL,DX
         val = _io.In(self._state.GetDX(), False)
-        self._state._al = val
+        self._state.SetAL(val)
 
         return 12
 
@@ -1906,7 +1911,7 @@ class i8088:
 
     def Op_OUT_DX_AL(self, opcode: int) -> int:  # 0xee
         # OUT
-        _io.Out(self._state.GetDX(), self._state._al, False)
+        _io.Out(self._state.GetDX(), self._state.GetAL(), False)
         return 12
 
     def Op_OUT_DX_AX(self, opcode: int) -> int:  # 0xef
@@ -1917,7 +1922,7 @@ class i8088:
     def Op_TEST_AL(self, opcode: int) -> int:  # 0xa8
         # TEST AL,..
         v = self.GetPcByte()
-        result = self._state._al & v
+        result = self._state.GetAL() & v
         self.SetLogicFuncFlags(False, result)
         self._state.SetFlagC(False)
         return 5
@@ -1933,7 +1938,7 @@ class i8088:
     def Op_STOSB(self, opcode: int) -> int:  # 0xaa
         if PrefixMustRun():
             # STOSB
-            self.WriteMemByte(self._state._es, self._state._di, self._state._al)
+            self.WriteMemByte(self._state._es, self._state._di, self._state.GetAL())
             self._state._di += -1 if self._state.GetFlagD() else 1
             return 11
         return 0  # TODO
@@ -1963,7 +1968,7 @@ class i8088:
         from_ = self.GetPcByte()
 
         val = _io.In(from_, False)
-        self._state._al = val
+        self._state.SetAL(val)
 
         return 14
 
@@ -1979,7 +1984,7 @@ class i8088:
     def Op_OUT_AL(self, opcode: int) -> int:  # 0xe6
         # OUT
         to = self.GetPcByte()
-        _io.Out(to, self._state._al, False)
+        _io.Out(to, self._state.GetAL(), False)
         return 10  # max 14
 
     def Op_OUT_AX(self, opcode: int) -> int:  # 0xe7
@@ -1990,8 +1995,8 @@ class i8088:
 
     def Op_XLATB(self, opcode: int) -> int:  # 0xd7
         # XLATB
-        old_al = self._state._al
-        self._state._al = self.ReadMemByte(self._state._segment_override if self._state._segment_override_set else  self._state._ds, (self._state.GetBX() + self._state._al) & 0xffff)
+        old_al = self._state.GetAL()
+        self._state.SetAl(self.ReadMemByte(self._state._segment_override if self._state._segment_override_set else  self._state._ds, (self._state.GetBX() + self._state.GetAL()) & 0xffff))
         return 11
 
     def Op_MOVSB(self, opcode: int) -> int:  # 0xa4
@@ -2057,7 +2062,7 @@ class i8088:
     def Op_MOV_AL_mem(self, opcode: int) -> int:  # 0xa0
         # MOV AL,[...]
         a = self.GetPcWord()
-        self._state._al = self.ReadMemByte(self._state._segment_override if self._state._segment_override_set else self._state._ds, a)
+        self._state.SetAL(self.ReadMemByte(self._state._segment_override if self._state._segment_override_set else self._state._ds, a))
         return 12
 
     def Op_MOV_AX_mem(self, opcode: int) -> int:  # 0xa1
@@ -2069,7 +2074,7 @@ class i8088:
     def Op_MOV_mem_AL(self, opcode: int) -> int:  # 0xa2
         # MOV [...],AL
         a = self.GetPcWord()
-        WriteMemByte(self._state._segment_override if self._state._segment_override_set else self._state._ds, a, self._state._al)
+        WriteMemByte(self._state._segment_override if self._state._segment_override_set else self._state._ds, a, self._state.GetAL())
         return 13
 
     def Op_MOV_mem_AX(self, opcode: int) -> int:  # 0xa3
@@ -2223,12 +2228,12 @@ class i8088:
         # SBB AL,ib
         v = self.GetPcByte()
         flag_c = self._state.GetFlagC()
-        result = self._state._al - v
+        result = self._state.GetAL() - v
         if flag_c:
             result -= 1
 
-        self.SetAddSubFlags(False, self._state._al, v, result, True, flag_c)
-        self._state._al = result & 0xff
+        self.SetAddSubFlags(False, self._state.GetAL(), v, result, True, flag_c)
+        self._state.SetAL(result & 0xff)
 
         return 3
 
@@ -2249,10 +2254,10 @@ class i8088:
     def Op_SUB_AL_ib(self, opcode: int) -> int:  # 0x2c
         # SUB AL,ib
         v = self.GetPcByte()
-        result = self._state._al - v
+        result = self._state.GetAL() - v
 
-        self.SetAddSubFlags(False, self._state._al, v, result, True, False)
-        self._state._al = result & 0xff
+        self.SetAddSubFlags(False, self._state.GetAL(), v, result, True, False)
+        self._state.SetAL(result & 0xff)
 
         return 3
 
@@ -2270,14 +2275,14 @@ class i8088:
     def Op_DAA(self, opcode: int) -> int:  # 0x27
         # DAA
         # https://www.felixcloutier.com/x86/daa
-        old_al = self._state._al
+        old_al = self._state.GetAL()
         old_af = self._state.GetFlagA()
         old_cf = self._state.GetFlagC()
 
         self._state.SetFlagC(False)
 
-        if ((self._state._al & 0x0f) > 9) or self._state.GetFlagA() == True:
-            add_carry = self._state._al + 6 > 255
+        if ((self._state.GetAL() & 0x0f) > 9) or self._state.GetFlagA() == True:
+            add_carry = self._state.GetAL() + 6 > 255
 
             self._state._al += 6
             self._state.SetFlagC(old_cf or add_carry)
@@ -2293,18 +2298,18 @@ class i8088:
         else:
             self._state.SetFlagC(False)
 
-        self._state.SetZSPFlags(self._state._al)
+        self._state.SetZSPFlags(self._state.GetAL())
 
         return 4
 
     def Op_DAS(self, opcode: int) -> int:  # 0x2f
-        old_al = self._state._al
+        old_al = self._state.GetAL()
         old_af = self._state.GetFlagA()
         old_cf = self._state.GetFlagC()
 
         self._state.SetFlagC(False)
 
-        if (self._state._al & 0x0f) > 9 or self._state.GetFlagA() == True:
+        if (self._state.GetAL() & 0x0f) > 9 or self._state.GetFlagA() == True:
             self._state._al -= 6
             self._state.SetFlagA(True)
         else:
@@ -2316,12 +2321,12 @@ class i8088:
             self._state._al -= 0x60
             self._state.SetFlagC(True)
 
-        self._state.SetZSPFlags(self._state._al)
+        self._state.SetZSPFlags(self._state.GetAL())
 
         return 4
 
     def Op_AAA(self, opcode: int) -> int:  # 0x37
-        if (self._state._al & 0x0f) > 9 or self._state.GetFlagA():
+        if (self._state.GetAL() & 0x0f) > 9 or self._state.GetFlagA():
             self._state._ah += 1
             self._state._al += 6
 
@@ -2336,7 +2341,7 @@ class i8088:
         return 8
 
     def Op_AAS(self, opcode: int) -> int:  # 0x3f
-        if (self._state._al & 0x0f) > 9 or self._state.GetFlagA():
+        if (self._state.GetAL() & 0x0f) > 9 or self._state.GetFlagA():
             self._state._al -= 6
             self._state._ah -= 1
 
@@ -2390,7 +2395,7 @@ class i8088:
     def Op_JMP(self, opcode: int) -> int:  # 0xeb
         # JMP
         to = self.GetPcByte()
-        self._state._ip = (self._state._ip + self.ToSigned8(to)) & 0xffff
+        self._state._ip = (self._state._ip + ToSigned8(to)) & 0xffff
         return 15
 
     def Op_HLT(self, opcode: int) -> int:  # 0xf4
@@ -2436,8 +2441,8 @@ class i8088:
 
     def Op_CBW(self, opcode: int) -> int:  # 0x98
         # CBW
-        new_value = self._state._al
-        if (self._state._al & 128) == 128:
+        new_value = self._state.GetAL()
+        if (self._state.GetAL() & 128) == 128:
             new_value |= 0xff00
         self._state.SetAX(new_value)
 
@@ -2445,7 +2450,7 @@ class i8088:
 
     def Op_CWD(self, opcode: int) -> int:  # 0x99
         # CWD
-        if (self._state._ah & 128) == 128:
+        if (self._state.GetAH() & 128) == 128:
             self._state.SetDX(0xffff)
         else:
             self._state.SetDX(0)
@@ -2455,7 +2460,7 @@ class i8088:
     def Op_LODSB(self, opcode: int) -> int:  # 0xac
         if PrefixMustRun():
             # LODSB
-            self._state._al = self.ReadMemByte(self._state._segment_override if _state.segment_override_set else self._state._ds, self._state._si)
+            self._state.SetAL(self.ReadMemByte(self._state._segment_override if _state.segment_override_set else self._state._ds, self._state._si))
             self._state._si += -1 if self._state.GetFlagD() else 1
 
             return 5
@@ -2487,7 +2492,7 @@ class i8088:
     def Op_SAHF(self, opcode: int) -> int:  # 0x9e
         # SAHF
         keep = self._state._flags & 0b1111111100101010
-        add = self._state._ah & 0b11010101
+        add = self._state.GetAH() & 0b11010101
 
         self._state._flags = keep | add
         self._state._FixFlags()
@@ -2496,15 +2501,15 @@ class i8088:
 
     def Op_LAHF(self, opcode: int) -> int:  # 0x9f
         # LAHF
-        self._state._ah = self._state._flags
+        self._state.SetAH(self._state._flags)
         return 2
 
     def Op_SCASB(self, opcode: int) -> int:  # 0xae
         if PrefixMustRun():
             # SCASB
             v = self.ReadMemByte(self._state._es, self._state._di)
-            result = self._state._al - v
-            self.SetAddSubFlags(False, self._state._al, v, result, True, False)
+            result = self._state.GetAL() - v
+            self.SetAddSubFlags(False, self._state.GetAL(), v, result, True, False)
             self._state._di += -1 if self._state.GetFlagD() else 1
 
             return 15
@@ -2529,10 +2534,10 @@ class i8088:
         b2 = self.GetPcByte()
 
         if b2 != 0:
-            self._state._ah = self._state._al / b2
+            self._state.SetAH(self._state.GetAL() / b2)
             self._state._al %= b2
 
-            self._state.SetZSPFlags(self._state._al)
+            self._state.SetZSPFlags(self._state.GetAL())
         else:
             self._state.SetZSPFlags(0)
 
@@ -2548,17 +2553,17 @@ class i8088:
         # AAD
         b2 = self.GetPcByte()
 
-        self._state._al = (self._state._al + self._state._ah * b2) & 0xff
-        self._state._ah = 0
-        self._state.SetZSPFlags(self._state._al)
+        self._state.SetAL((self._state.GetAL() + self._state.GetAH() * b2) & 0xff)
+        self._state.SetAH(0)
+        self._state.SetZSPFlags(self._state.GetAL())
 
         return 60
 
     def Op_SALC(self, opcode: int) -> int:  # 0xd6
         # SALC
         if self._state.GetFlagC():
-            self._state._al = 0xff
+            self._state.SetAL(0xff)
         else:
-            self._state._al = 0x00
+            self._state.SetAL(0x00)
 
         return 2  # TODO
