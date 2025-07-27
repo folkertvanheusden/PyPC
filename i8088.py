@@ -1748,3 +1748,30 @@ class i8088:
             return 51  # 71  TODO
 
         return 0  # TODO
+
+    def Op_CMP(self, opcode: int) -> int:
+        # CMP
+        word = (opcode & 1) == 1
+
+        result = 0
+
+        r1 = 0
+        r2 = 0
+
+        cycle_count = 4
+
+        if opcode == 0x3d:
+            r1 = self._state.GetAX()
+            r2 = self.GetPcWord()
+
+            result = r1 - r2
+
+        elif opcode == 0x3c:
+            r1 = self._state.al
+            r2 = self.GetPcByte()
+
+            result = r1 - r2
+
+        self.SetAddSubFlags(word, r1, r2, result, True, False)
+
+        return cycle_count
