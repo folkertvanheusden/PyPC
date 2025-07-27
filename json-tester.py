@@ -45,13 +45,16 @@ j = json.loads(open(sys.argv[1], 'r').read())
 count = 0
 ok = 0
 
+b = bus.Bus(1024 * 1024, [], [])
+p = i8088.i8088(b, [], False)
+state = p.GetState()
+
 for test in j:
+    b.ClearMemory()
+    p.Reset()
+
     opcodes = [ f'{b:02x}' for b in test['bytes'] ]
     print(f'Testing {test["name"]} / {test["hash"]} / opcodes: {", ".join(opcodes)}')
-
-    b = bus.Bus(1024 * 1024, [], [])
-    p = i8088.i8088(b, [], False)
-    state = p.GetState()
 
     regs = test['initial']['regs']
     for reg in regs:

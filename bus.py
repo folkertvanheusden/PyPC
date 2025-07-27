@@ -48,8 +48,8 @@ class Bus:
         # last! because it is a full 1 MB
         self._AddEntries((self._m,))
 
-    def ClearMemory():
-        self._m = Memory(self._size)
+    def ClearMemory(self):
+        self._m = memory.Memory(self._size)
         self.RecreateCache()
 
     def ReadByte(self, address: int) -> Tuple[int, int]:
