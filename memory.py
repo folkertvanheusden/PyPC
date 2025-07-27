@@ -3,7 +3,7 @@ from device import Device
 
 class Memory(Device):
     def __init__(self, size: int):
-        self._m: List[int] = [ 255 ] * size
+        self._m: bytearray = bytearray(b'\xff' * size)
 
     @override
     def ReadByte(self, address: int) -> int:
