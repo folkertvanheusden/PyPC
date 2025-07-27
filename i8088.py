@@ -209,6 +209,10 @@ class i8088:
         n &= 0xff
         return (n ^ 0x80) - 0x80
 
+    def ToSigned16(self, n):
+        n &= 0xffff
+        return (n ^ 0x8000) - 0x8000
+
     def GetState(self) -> state8088.State8088:
         return self._state
 
@@ -1539,3 +1543,178 @@ class i8088:
             cycle_count += put_cycles
 
         return cycle_count
+
+    def Op_TEST_others(self, opcode: int) -> int:
+        # TEST and others
+        cycle_count = 0
+        word = (opcode & 1) == 1
+
+        o1 = self.GetPcByte()
+        mod = o1 >> 6
+        reg1 = o1 & 7
+
+        (r1, a_valid, seg, addr, get_cycles) = self.GetRegisterMem(reg1, mod, word)
+        cycle_count += get_cycles
+
+        function = (o1 >> 3) & 7
+        if function == 0 or function == 1:
+            # TEST
+            if word:
+                r2 = self.GetPcWord()
+
+                result = r1 & r2
+                self.SetLogicFuncFlags(True, result)
+
+                self._state.SetFlagC(False)
+            else:
+                r2 = self.GetPcByte()
+                result = r1 & r2
+                self.SetLogicFuncFlags(word, result)
+
+                self._state.SetFlagC(False)
+
+        elif function == 2:
+            # NOT
+            put_cycles = self.UpdateRegisterMem(reg1, mod, a_valid, seg, addr, word, ~r1)
+            cycle_count += put_cycles
+        elif function == 3:
+            # NEG
+            result = -r1
+
+            self.SetAddSubFlags(word, 0, r1, -r1, True, False)
+            self._state.SetFlagC(r1 != 0)
+
+            put_cycles = self.UpdateRegisterMem(reg1, mod, a_valid, seg, addr, word, result)
+            cycle_count += put_cycles
+
+        elif function == 4:
+            negate = self._state.rep_mode == RepMode.REP and _state.rep
+            self._state.rep = False
+
+            # MUL
+            if word:
+                ax = self._state.GetAX()
+                resulti = ax * r1
+
+                dx_ax = resulti & 0xffffffff
+                if negate:
+                    dx_ax = -dx_ax
+                self._state.SetAX(dx_ax)
+                self._state.SetDX(dx_ax >> 16)
+
+                flag = _state.GetDX() != 0
+                self._state.SetFlagC(flag)
+                self._state.SetFlagO(flag)
+
+                cycle_count += 118
+            else:
+                result = _state.al * r1
+                if negate:
+                    result = -result
+                self._state.SetAX(result)
+
+                flag = _state.ah != 0
+                self._state.SetFlagC(flag)
+                self._state.SetFlagO(flag)
+
+                cycle_count += 70
+
+        elif function == 5:
+            negate = _state.rep_mode == RepMode.REP and _state.rep
+            _state.rep = False
+
+            # IMUL
+            if word:
+                ax = ToSigned16(self._state.GetAX())
+                resulti = ax * ToSigned16(r1)
+
+                dx_ax = resulti
+                if negate:
+                    dx_ax = -dx_ax
+                _state.SetAX(dx_ax)
+                _state.SetDX(dx_ax >> 16)
+
+                flag = ToSigned16(self._state.GetAX()) != resulti
+                self._state.SetFlagC(flag)
+                self._state.SetFlagO(flag)
+
+                cycle_count += 128
+
+            else:
+                result = ToSigned8(_state.al) * ToSigned8(r1)
+                if negate:
+                    result = -result
+                self._state.SetAX(result)
+
+                self._state.SetFlagS((_state.ah & 128) == 128)
+                flag = ToSigned8(_state.al) != ToSigned16(result)
+                self._state.SetFlagC(flag)
+                self._state.SetFlagO(flag)
+
+                cycle_count += 80
+
+        elif function == 6:
+            self._state.SetFlagC(False)
+            self._state.SetFlagO(False)
+
+            # DIV
+            if word:
+                dx_ax = (_state.GetDX() << 16) | _state.GetAX()
+
+                if r1 == 0 or dx_ax / r1 >= 0x10000:
+                    self._state.SetZSPFlags(_state.ah)
+                    self._state.SetFlagA(False)
+                    self.InvokeInterrupt(_state.ip, 0x00, False)  # divide by zero or divisor too small
+                else:
+                    self._state.SetAX(dx_ax / r1)
+                    self._state.SetDX(dx_ax % r1)
+
+            else:
+                ax = self._state.GetAX()
+
+                if r1 == 0 or ax / r1 >= 0x100:
+                    self._state.SetZSPFlags(_state.ah)
+                    self._state.SetFlagA(False)
+                    self.InvokeInterrupt(_state.ip, 0x00, False)  # divide by zero or divisor too small
+                else:
+                    self._state.al = ax / r1
+                    self._state.ah = ax % r1
+
+        elif function == 7:
+            negate = _state.rep_mode == RepMode.REP and _state.rep
+            self._state.rep = False
+
+            self._state.SetFlagC(False)
+            self._state.SetFlagO(False)
+
+            # IDIV
+            if word:
+                dx_ax = (_state.GetDX() << 16) | _state.GetAX()
+                r1s = ToSigned16(r1)
+
+                if r1s == 0 or dx_ax / r1s > 0x7fffffff or dx_ax / r1s < -0x80000000:
+                    self._state.SetZSPFlags(_state.ah)
+                    self._state.SetFlagA(False)
+                    self.InvokeInterrupt(_state.ip, 0x00, False)  # divide by zero or divisor too small
+                else:
+                    if negate:
+                        _state.SetAX(-(dx_ax / r1s))
+                    else:
+                        _state.SetAX(dx_ax / r1s)
+                    _state.SetDX(dx_ax % r1s)
+            else:
+                ax = ToSigned16(_state.GetAX())
+                r1s = ToSigned8(r1)
+
+                if r1s == 0 or ax / r1s > 0x7fff or ax / r1s < -0x8000:
+                    _state.SetZSPFlags(_state.ah)
+                    _state.SetFlagA(False)
+                    self.InvokeInterrupt(_state.ip, 0x00, False)  # divide by zero or divisor too small
+                else:
+                    if negate:
+                        _state.al = -(ax / r1s) & 0xff
+                    else:
+                        _state.al = (ax / r1s) & 0xff
+                    _state.ah = (ax % r1s) & 0xff
+
+        return cycle_count + 4
