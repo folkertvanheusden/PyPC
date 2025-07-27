@@ -37,5 +37,6 @@ class Memory(Device):
     def RegisterDevice(self, mappings: dict):
         pass
 
+    @override
     def Ticks(self) -> bool:
         return False
