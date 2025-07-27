@@ -1474,7 +1474,7 @@ class i8088:
     def Op_INC_DEC(self, opcode: int) ->int:
         # INC/DECw
         reg = (opcode - 0x40) & 7
-        v = self.GetRegister(reg, true)
+        v = self.GetRegister(reg, True)
         isDec = opcode >= 0x48
 
         if isDec:
@@ -1490,6 +1490,52 @@ class i8088:
         self._state.SetFlagZ(v == 0)
         self._state.SetFlagP(v)
 
-        self.PutRegister(reg, true, v)
+        self.PutRegister(reg, True, v)
 
         return 3
+
+    def Op_MOV2(self, opcode: int) -> int:
+        cycle_count = 0
+        dir = (opcode & 2) == 2 // direction
+        word = (opcode & 1) == 1 // b/w
+
+        o1 = GetPcByte()
+        mode = o1 >> 6
+        reg = (o1 >> 3) & 7
+        rm = o1 & 7
+
+        sreg = opcode == 0x8e or opcode == 0x8c
+        if sreg:
+            word = True
+            _state.inhibit_interrupts = opcode == 0x8e
+
+        cycle_count += 13
+
+        # 88: rm < r (byte) 00  False,byte
+        # 89: rm < r (word) 01  False,word  <--
+        # 8a: r < rm (byte) 10  True, byte
+        # 8b: r < rm (word) 11  True, word
+
+        # 89|E6 mode 3, reg 4, rm 6, dir False, word True, sreg False
+
+        if dir:
+            # to 'rm' from 'REG'
+            (v, a_valid, seg, addr, get_cycles) = self.GetRegisterMem(rm, mode, word)
+            cycle_count += get_cycles
+
+            if sreg:
+                self.PutSRegister(reg, v)
+            else:
+                self.PutRegister(reg, word, v)
+        else:
+            # from 'REG' to 'rm'
+            v = 0
+            if sreg:
+                v = self.GetSRegister(reg)
+            else:
+                v = self.GetRegister(reg, word)
+
+            put_cycles = self.PutRegisterMem(rm, mode, word, v)
+            cycle_count += put_cycles
+
+        return cycle_count
