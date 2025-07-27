@@ -1,0 +1,936 @@
+from typing import List, Tuple
+import bus
+import device
+import io
+import state8088
+
+
+class i8088:
+    def __init__(self, b: bus.Bus, devices: List[device.Device], run_IO: bool):
+        self._terminate_on_off_the_rails: bool = False
+        self._MemMask: int = 0x00ffffff
+
+        self._breakpoints = set()
+        self._ignore_breakpoints: bool = False
+        self._stop_reason: str = ''
+
+        self._state: state8088.State8088 = state8088.State8088()
+
+        self._b = b;
+        self._devices = devices
+        self._io = IO(b, devices, not run_IO)
+        self._terminate_on_off_the_rails = run_IO
+
+        self._ops[0x00] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x01] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x02] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x03] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x04] = self.Op_ADD_AL_xx
+        self._ops[0x05] = self.Op_ADD_AX_xxxx
+        self._ops[0x06] = self.Op_PUSH_ES
+        self._ops[0x07] = self.Op_POP_ES
+        self._ops[0x08] = self.Op_logic_functions
+        self._ops[0x09] = self.Op_logic_functions
+        self._ops[0x0a] = self.Op_logic_functions
+        self._ops[0x0b] = self.Op_logic_functions
+        self._ops[0x0c] = self.Op_OR_AND_XOR
+        self._ops[0x0e] = self.Op_PUSH_CS
+        self._ops[0x0f] = self.Op_POP_CS
+        self._ops[0x0d] = self.Op_OR_AND_XOR
+        self._ops[0x10] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x11] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x12] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x13] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x14] = self.Op_ADD_AL_xx
+        self._ops[0x15] = self.Op_ADD_AX_xxxx
+        self._ops[0x16] = self.Op_PUSH_SS
+        self._ops[0x17] = self.Op_POP_SS
+        self._ops[0x18] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x19] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x1a] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x1b] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x1c] = self.Op_SBB_AL_ib
+        self._ops[0x1d] = self.Op_SBB_AX_iw
+        self._ops[0x1e] = self.Op_PUSH_DS
+        self._ops[0x1f] = self.Op_POP_DS
+        self._ops[0x20] = self.Op_logic_functions
+        self._ops[0x21] = self.Op_logic_functions
+        self._ops[0x22] = self.Op_logic_functions
+        self._ops[0x23] = self.Op_logic_functions
+        self._ops[0x24] = self.Op_OR_AND_XOR
+        self._ops[0x25] = self.Op_OR_AND_XOR
+        self._ops[0x27] = self.Op_DAA
+        self._ops[0x28] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x29] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x2a] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x2b] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x2c] = self.Op_SUB_AL_ib
+        self._ops[0x2d] = self.Op_SUB_AX_iw
+        self._ops[0x2f] = self.Op_DAS
+        self._ops[0x30] = self.Op_logic_functions
+        self._ops[0x31] = self.Op_logic_functions
+        self._ops[0x32] = self.Op_logic_functions
+        self._ops[0x33] = self.Op_logic_functions
+        self._ops[0x34] = self.Op_OR_AND_XOR
+        self._ops[0x35] = self.Op_OR_AND_XOR
+        self._ops[0x37] = self.Op_AAA
+        self._ops[0x38] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x39] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x3a] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x3b] = self.Op_ADD_SUB_ADC_SBC
+        self._ops[0x3c] = self.Op_CMP
+        self._ops[0x3d] = self.Op_CMP
+        self._ops[0x3f] = self.Op_AAS
+        for i in range(0x40, 0x50):
+            self._ops[i] = self.Op_INC_DEC
+        self._ops[0x50] = self.Op_PUSH_AX
+        self._ops[0x51] = self.Op_PUSH_CX
+        self._ops[0x52] = self.Op_PUSH_DX
+        self._ops[0x53] = self.Op_PUSH_BX
+        self._ops[0x54] = self.Op_PUSH_SP
+        self._ops[0x55] = self.Op_PUSH_BP
+        self._ops[0x56] = self.Op_PUSH_SI
+        self._ops[0x57] = self.Op_PUSH_DI
+        self._ops[0x58] = self.Op_POP_AX
+        self._ops[0x59] = self.Op_POP_CX
+        self._ops[0x5a] = self.Op_POP_DX
+        self._ops[0x5b] = self.Op_POP_BX
+        self._ops[0x5c] = self.Op_POP_SP
+        self._ops[0x5d] = self.Op_POP_BP
+        self._ops[0x5e] = self.Op_POP_SI
+        self._ops[0x5f] = self.Op_POP_DI
+        for i in range(0x60, 0x80):
+            self._ops[i] = self.Op_Jxx
+        self._ops[0x80] = self.Op_CMP_OR_XOR_etc
+        self._ops[0x81] = self.Op_CMP_OR_XOR_etc
+        self._ops[0x82] = self.Op_CMP_OR_XOR_etc
+        self._ops[0x83] = self.Op_CMP_OR_XOR_etc
+        self._ops[0x84] = self.Op_TEST
+        self._ops[0x85] = self.Op_TEST
+        self._ops[0x86] = self.Op_XCHG
+        self._ops[0x87] = self.Op_XCHG
+        self._ops[0x88] = self.Op_MOV2
+        self._ops[0x89] = self.Op_MOV2
+        self._ops[0x8a] = self.Op_MOV2
+        self._ops[0x8b] = self.Op_MOV2
+        self._ops[0x8c] = self.Op_MOV2
+        self._ops[0x8d] = self.Op_LEA
+        self._ops[0x8e] = self.Op_MOV2
+        self._ops[0x8f] = self.Op_POP_rmw
+        self._ops[0x90] = self.Op_NOP
+        for i in range(0x91, 0x98):
+            self._ops[i] = self.Op_XCHG_AX
+        self._ops[0x98] = self.Op_CBW
+        self._ops[0x99] = self.Op_CWD
+        self._ops[0x9a] = self.Op_CALL_far
+        self._ops[0x9b] = self.Op_FWAIT
+        self._ops[0x9c] = self.Op_PUSHF
+        # self._ops[0x9d] = self.Op_POPF  special case
+        self._ops[0x9e] = self.Op_SAHF
+        self._ops[0x9f] = self.Op_LAHF
+        self._ops[0xa0] = self.Op_MOV_AL_mem
+        self._ops[0xa1] = self.Op_MOV_AX_mem
+        self._ops[0xa2] = self.Op_MOV_mem_AL
+        self._ops[0xa3] = self.Op_MOV_mem_AX
+        self._ops[0xa4] = self.Op_MOVSB
+        self._ops[0xa5] = self.Op_MOVSW
+        self._ops[0xa6] = self.Op_CMPSB
+        self._ops[0xa7] = self.Op_CMPSW
+        self._ops[0xa8] = self.Op_TEST_AL
+        self._ops[0xa9] = self.Op_TEST_AX
+        self._ops[0xaa] = self.Op_STOSB
+        self._ops[0xab] = self.Op_STOSW
+        self._ops[0xac] = self.Op_LODSB
+        self._ops[0xad] = self.Op_LODSW
+        self._ops[0xae] = self.Op_SCASB
+        self._ops[0xaf] = self.Op_SCASW
+        for i in range(0xb0, 0xc0):
+            self._ops[i] = self.Op_MOV_reg_ib
+        self._ops[0xc0] = self.Op_RET2
+        self._ops[0xc1] = self.Op_RET3
+        self._ops[0xc2] = self.Op_RET2
+        self._ops[0xc3] = self.Op_RET3
+        self._ops[0xc4] = self.Op_LES_LDS
+        self._ops[0xc5] = self.Op_LES_LDS
+        self._ops[0xc6] = self.Op_MOV
+        self._ops[0xc7] = self.Op_MOV
+        self._ops[0xc8] = self.Op_REFT
+        self._ops[0xc9] = self.Op_REFT
+        self._ops[0xca] = self.Op_REFT
+        self._ops[0xcb] = self.Op_REFT
+        self._ops[0xcc] = self.Op_INT
+        self._ops[0xcd] = self.Op_INT
+        self._ops[0xce] = self.Op_INT
+#        self._ops[0xcf] = self.Op_IRET special case
+        self._ops[0xd0] = self.Op_shift
+        self._ops[0xd1] = self.Op_shift
+        self._ops[0xd2] = self.Op_shift
+        self._ops[0xd3] = self.Op_shift
+        self._ops[0xd4] = self.Op_AAM
+        self._ops[0xd5] = self.Op_AAD
+        self._ops[0xd6] = self.Op_SALC
+        self._ops[0xd7] = self.Op_XLATB
+        for i in range(0xd8, 0xe0):
+            self._ops[i] = self.Op_FPU
+        self._ops[0xe0] = self.Op_LOOP
+        self._ops[0xe1] = self.Op_LOOP
+        self._ops[0xe2] = self.Op_LOOP
+        self._ops[0xe3] = self.Op_JCXZ
+        self._ops[0xe4] = self.Op_IN_AL_ib
+        self._ops[0xe5] = self.Op_IN_AX_ib
+        self._ops[0xe6] = self.Op_OUT_AL
+        self._ops[0xe7] = self.Op_OUT_AX
+        self._ops[0xe8] = self.Op_CALL
+        self._ops[0xe9] = self.Op_JMP_np
+        self._ops[0xea] = self.Op_JMP_far
+        self._ops[0xeb] = self.Op_JMP
+        self._ops[0xec] = self.Op_IN_AL_DX
+        self._ops[0xed] = self.Op_IN_AX_DX
+        self._ops[0xee] = self.Op_OUT_DX_AL
+        self._ops[0xef] = self.Op_OUT_DX_AX
+        self._ops[0xf4] = self.Op_HLT
+        self._ops[0xf5] = self.Op_CMC
+        self._ops[0xf6] = self.Op_TEST_others
+        self._ops[0xf7] = self.Op_TEST_others
+        self._ops[0xf8] = self.Op_CLC
+        self._ops[0xf9] = self.Op_STC
+        self._ops[0xfa] = self.Op_CLI
+        self._ops[0xfb] = self.Op_STI
+        self._ops[0xfc] = self.Op_CLD
+        self._ops[0xfd] = self.Op_STD
+        self._ops[0xfe] = self.Op_fe_ff
+        self._ops[0xff] = self.Op_fe_ff
+
+        # bit 1 of the flags register is always 1
+        # https://www.righto.com/2023/02/silicon-reverse-engineering-intel-8086.html
+        self._state.flags |= 2
+
+    def GetState(self) -> state8088.State8088:
+        return self._state
+
+    def GetPcByte(self) -> int:
+        ip = self._state.ip
+        self._state.ip += 1
+        self._state.ip &= 0xffff
+        return self.ReadMemByte(self._state.cs, ip)
+
+    def GetPcWord(self) -> int:
+        v = self.GetPcByte()
+        v |= self.GetPcByte() << 8
+        return v
+
+    def SetAddSubFlags(self, word: bool, r1: int, r2: int, result: int, issub: bool, flag_c: bool):
+        in_reg_result = (result & 0xffff) if word else (result & 0xff)
+        u_result = abs(result)
+
+        mask = 0x8000 if word else 0x80
+
+        temp_r2 = ((r2 - flag_c) if issub else (r2 + flag_c)) & 0xffff
+
+        before_sign = (r1 & mask) == mask
+        value_sign = (r2 & mask) == mask
+        after_sign = (u_result & mask) == mask
+
+        self._state.SetFlagO(after_sign != before_sign and ((before_sign != value_sign and issub) or (before_sign == value_sign and issub == False)))
+        self._state.SetFlagC(u_result >= 0x10000 if word else u_result >= 0x100)
+        self._state.SetFlagS((in_reg_result & mask) != 0)
+        self._state.SetFlagZ(in_reg_result == 0)
+
+        if issub:
+            self._state.SetFlagA((((r1 & 0x0f) - (r2 & 0x0f) - flag_c) & 0x10) > 0)
+        else:
+            self._state.SetFlagA((((r1 & 0x0f) + (r2 & 0x0f) + flag_c) & 0x10) > 0)
+
+        self._state.SetFlagP(result & 0xff)
+
+    def GetRegister(reg: int, w: bool) -> int:
+        if w:
+            if reg == 0:
+                return self._state.GetAX()
+            if reg == 1:
+                return self._state.GetCX()
+            if reg == 2:
+                return self._state.GetDX()
+            if reg == 3:
+                return self._state.GetBX()
+            if reg == 4:
+                return self._state.sp
+            if reg == 5:
+                return self._state.bp
+            if reg == 6:
+                return self._state.si
+            if reg == 7:
+                return self._state.di
+        else:
+            if reg == 0:
+                return self._state.al
+            if reg == 1:
+                return self._state.cl
+            if reg == 2:
+                return self._state.dl
+            if reg == 3:
+                return self._state.bl
+            if reg == 4:
+                return self._state.ah
+            if reg == 5:
+                return self._state.ch
+            if reg == 6:
+                return self._state.dh
+            if reg == 7:
+                return self._state.bh
+
+    def GetSRegister(self, reg: int) -> int:
+        reg &= 0b00000011
+
+        if reg == 0b000:
+            return self._state.es
+        if reg == 0b001:
+            return self._state.cs
+        if reg == 0b010:
+            return self._state.ss
+        if reg == 0b011:
+            return self._state.ds
+
+    # value, cycles
+    def GetDoubleRegisterMod01_02(self, reg: int, word: bool) -> Tuple[int, int, bool, int]:
+        a = 0
+        cycles = 0
+        override_segment = False
+        new_segment = 0
+
+        if reg == 6:
+            a = self.self._state.bp
+            cycles = 5
+            override_segment = True
+            new_segment = self._state.ss
+
+        else:
+            a, cycles = self.GetDoubleRegisterMod00(reg)
+
+        disp = GetPcWord() if word else GetPcByte()
+
+        return ((a + disp) & 0xffff, cycles, override_segment, new_segment)
+
+    # value, segment_a_valid, segment/, address of value, number of cycles
+    def GetRegisterMem(self, reg: int, mod: int, w: bool) -> Tuple[int, bool, int, int, int]:
+        if mod == 0:
+            (a, cycles) = self.GetDoubleRegisterMod00(reg)
+
+            segment =  self._state.segment_override if self._state.segment_override_set else self._state.ds
+
+            if self._state.segment_override_set == False and (reg == 2 or reg == 3):  # BP uses SS
+                segment = self._state.ss
+
+            v = self.ReadMemWord(segment, a) if w else self.ReadMemByte(segment, a)
+
+            cycles += 6
+
+            return (v, True, segment, a, cycles)
+
+        if mod == 1 or mod == 2:
+            word = mod == 2
+
+            (a, cycles, override_segment, new_segment) = self.GetDoubleRegisterMod01_02(reg, word)
+
+            segment = self._state.segment_override if self._state.segment_override_set else self._state.ds
+
+            if self._state.segment_override_set == False and override_segment:
+                segment = new_segment
+
+            if self._state.segment_override_set == False and (reg == 2 or reg == 3):  # BP uses SS
+                segment = self._state.ss
+
+            v = self.ReadMemWord(segment, a) if w else self.ReadMemByte(segment, a)
+
+            cycles += 6
+
+            return (v, True, segment, a, cycles)
+
+        if mod == 3:
+            v = self.GetRegister(reg, w)
+
+            return (v, False, 0, 0, 0)
+
+    def GetRegisterMem(self, reg: int, mod: int, w: bool):
+        if mod == 0:
+            a, cycles = self.GetDoubleRegisterMod00(reg)
+
+            segment = self._state.segment_override if self._state.segment_override_set else self._state.ds
+
+            if self._state.segment_override_set == False and (reg == 2 or reg == 3):  # BP uses SS
+                segment = self._state.ss
+
+            v = self.ReadMemWord(segment, a) if w else self.ReadMemByte(segment, a)
+
+            cycles += 6
+
+            return (v, True, segment, a, cycles)
+
+        if mod == 1 or mod == 2:
+            word = mod == 2
+
+            a, cycles, override_segment, new_segment = self.GetDoubleRegisterMod01_02(reg, word)
+
+            segment = self._state.segment_override if self._state.segment_override_set else self._state.ds
+
+            if self._state.segment_override_set == False and override_segment:
+                segment = new_segment
+
+            if self._state.segment_override_set == False and (reg == 2 or reg == 3):  # BP uses SS
+                segment = self._state.ss
+
+            v = ReadMemWord(segment, a) if w else ReadMemByte(segment, a)
+
+            cycles += 6
+
+            return (v, True, segment, a, cycles)
+
+        if mod == 3:
+            v = self.GetRegister(reg, w)
+
+            return (v, False, 0, 0, 0)
+
+        return (0, False, 0, 0, 0)
+
+    def UpdateRegisterMem(self, reg: int, mod: int, a_valid: bool, seg: int, addr: int, word: bool, v: int) -> int:
+        if a_valid:
+            if word:
+                self.WriteMemWord(seg, addr, v)
+            else:
+                self.WriteMemByte(seg, addr, v)
+            return 4
+
+        return self.PutRegisterMem(reg, mod, word, v)
+
+    def PutRegister(self, reg: int, w: bool, val: int):
+        if reg == 0:
+            if w:
+                self._state.SetAX(val)
+            else:
+                self._state.al = val
+        elif reg == 1:
+            if w:
+                self._state.SetCX(val)
+            else:
+                self._state.cl = val
+        elif reg == 2:
+            if w:
+                self._state.SetDX(val)
+            else:
+                self._state.dl = val
+        elif reg == 3:
+            if w:
+                self._state.SetBX(val)
+            else:
+                self._state.bl = val
+        elif reg == 4:
+            if w:
+                self._state.sp = val
+            else:
+                self._state.ah = val
+        elif reg == 5:
+            if w:
+                self._state.bp = val
+            else:
+                self._state.ch = val
+        elif reg == 6:
+            if w:
+                self._state.si = val
+            else:
+                self._state.dh = val
+        elif reg == 7:
+            if w:
+                self._state.di = val
+            else:
+                self._state.bh = val
+
+    def PutSRegister(self, reg: int, v: int):
+        reg &= 0b00000011
+
+        if reg == 0b000:
+            self._state.es = v
+        elif reg == 0b001:
+            self._state.cs = v
+        elif reg == 0b010:
+            self._state.ss = v
+        elif reg == 0b011:
+            self._state.ds = v
+
+    # returns cycle count
+    def PutRegisterMem(self, reg: int, mod: int, w: bool, val: int) -> int:
+        if mod == 0:
+            (a, cycles) = self.GetDoubleRegisterMod00(reg)
+
+            segment = self._state.segment_override if self._state.segment_override_set else self._state.ds
+
+            if self._state.segment_override_set == False and (reg == 2 or reg == 3):  # BP uses SS
+                segment = self._state.ss
+
+            if w:
+                self.WriteMemWord(segment, a, val)
+            else:
+                self.WriteMemByte(segment, a, val)
+
+            cycles += 4
+
+            return cycles
+
+        if mod == 1 or mod == 2:
+            (a, cycles, override_segment, new_segment) = self.GetDoubleRegisterMod01_02(reg, mod == 2)
+
+            segment = self._state.segment_override if self._state.segment_override_set else self._state.ds
+
+            if self._state.segment_override_set == False and override_segment:
+                segment = new_segment
+
+            if self._state.segment_override_set == False and (reg == 2 or reg == 3):  # BP uses SS
+                segment = self._state.ss
+
+            if w:
+                self.WriteMemWord(segment, a, val)
+            else:
+                self.WriteMemByte(segment, a, val)
+
+            cycles += 4
+
+            return cycles
+
+        if mod == 3:
+            self.PutRegister(reg, w, val)
+            return 0  # TODO
+
+    # value, cycles
+    def GetDoubleRegisterMod00(self, reg: int) -> Tuple[int, int]:
+        a = None
+        cycles = None
+
+        if reg == 0:
+            a = self._state.GetBX() + self._state.si
+            cycles = 7
+
+        elif reg == 1:
+            a = self._state.GetBX() + self._state.di
+            cycles = 8
+
+        elif reg == 2:
+            a = self._state.bp + self._state.si
+            cycles = 8
+
+        elif reg == 3:
+            a = self._state.bp + self._state.di
+            cycles = 7
+
+        elif reg == 4:
+            a = self._state.si
+            cycles = 5
+
+        elif reg == 5:
+            a = self._state.di
+            cycles = 5
+
+        elif reg == 6:
+            a = self.GetPcWord()
+            cycles = 6
+
+        elif reg == 7:
+            a = self._state.GetBX()
+            cycles = 5
+
+        a &= 0xffff
+
+        return (a, cycles)
+
+    def SetLogicFuncFlags(self, word: bool, result: int):
+        self._state.SetFlagO(False)
+        self._state.SetFlagS(((result & 0x8000) if word else (result & 0x80)) != 0)
+        self._state.SetFlagZ(result == 0 if word else (result & 0xff) == 0)
+        self._state.SetFlagP(result)
+
+        self._state.SetFlagA(False)  # undefined
+
+        self._state.SetFlagC(False)
+
+    def push(self, v: int):
+        self._state.sp -= 2
+        self.WriteMemWord(self._state.ss, self._state.sp, v)
+
+    def pop(self) -> int:
+        v = self.ReadMemWord(self._state.ss, self._state.sp)
+        self._state.sp += 2
+        return v
+
+    def InvokeInterrupt(self, instr_start: int, interrupt_nr: int, pic: bool):
+        self._state.segment_override_set = False
+
+        if pic:
+            self._io.GetPIC().SetIRQBeingServiced(interrupt_nr)
+            interrupt_nr += self._io.GetPIC().GetInterruptOffset()
+
+        self.push(self._state.flags)
+        self.push(self._state.cs)
+        if self._state.rep:
+            self.push(self._state.rep_addr)
+            self._state.rep = False
+
+        else:
+            self.push(instr_start)
+
+        self._state.SetFlagI(False)
+        self._state.SetFlagT(False)
+
+        addr = interrupt_nr * 4
+
+        self._state.ip = self.ReadMemWord(0, addr)
+        self._state.cs = self.ReadMemWord(0, (addr + 2) & 0xffff)
+
+    def IsProcessingRep(self) -> bool:
+        return self._state.rep
+
+    def PrefixMustRun(self) -> bool:
+        rc = True
+
+        if self._state.rep:
+            cx = self._state.GetCX()
+
+            if self._state.rep_do_nothing:
+                self._state.rep = False
+                rc = False
+
+            else:
+                cx -= 1
+                self._state.SetCX(cx)
+
+                if cx == 0:
+                    self._state.rep = False
+                elif self._state.rep_mode == RepMode.REPE_Z:
+                    pass
+                elif self._state.rep_mode == RepMode.REPNZ:
+                    pass
+                elif self._state.rep_mode == RepMode.REP:
+                    pass
+                else:
+                    # unknown _state.rep_mode
+                    self._state.rep = False
+                    rc = False
+
+        self._state.rep_do_nothing = False
+
+        return rc
+
+    def PrefixEnd(self, opcode: int):
+        if opcode in (0xa4, 0xa5, 0xa6, 0xa7, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf):
+            if self._state.rep_mode == RepMode.REPE_Z:
+                # REPE/REPZ
+                if self._state.GetFlagZ() != True:
+                    _state.rep = False
+
+            elif self._state.rep_mode == RepMode.REPNZ:
+                # REPNZ
+                if self._state.GetFlagZ() != False:
+                    self._state.rep = False
+        else:
+            self._state.rep = False
+
+        if self._state.rep == False:
+            self._state.segment_override_set = False
+
+        if self._state.rep:
+            self._state.ip = self._state.rep_addr
+
+    def ResetCrashCounter(self):
+        self._state.crash_counter = 0
+
+    def IsInHlt(self) -> bool:
+        return _state.in_hlt
+
+    # cycle counts from https://zsmith.co/intel_i.php
+    def Tick(self) -> int:
+        cycle_count = 0  # cycles used for an instruction
+        back_from_trace = False
+
+        # check for interrupt
+        if self._state.GetFlagI() == True and _state.inhibit_interrupts == False:
+            irq = _io.GetPIC().GetPendingInterrupt()
+            if irq != 255:
+                for device in self._devices:
+                    if device.GetIRQNumber() != irq:
+                        continue
+
+                    self._state.in_hlt = False
+                    self.InvokeInterrupt(self._state.ip, irq, True)
+                    cycle_count += 60
+                    self._state.clock += cycle_count
+
+                    return cycle_count
+
+        self._state.inhibit_interrupts = False
+
+        # T-flag produces an interrupt after each instruction
+        if _state.in_hlt:
+            cycle_count += 2
+            self._state.clock += cycle_count  # time needs to progress for timers etc
+            self._io.Tick(cycle_count, _state.clock)
+            return cycle_count
+
+        instr_start = self._state.ip
+        address = (self._state.cs * 16 + self._state.ip) & MemMask
+        opcode = self.GetPcByte()
+
+        if _ignore_breakpoints:
+            _ignore_breakpoints = False
+
+        else:
+            if instr_start in self._breakpoints:
+                _stop_reason = f'Breakpoint reached at address {check_address:06x}'
+                return -1
+
+        # handle prefixes
+        while opcode in (0x26, 0x2e, 0x36, 0x3e, 0xf2, 0xf3):
+            if opcode == 0x26:
+                _state.segment_override = _state.es
+            elif opcode == 0x2e:
+                _state.segment_override = _state.cs
+            elif opcode == 0x36:
+                _state.segment_override = _state.ss
+            elif opcode == 0x3e:
+                _state.segment_override = _state.ds
+            elif opcode in (0xf2, 0xf3):
+                self._state.rep = True
+                self._state.rep_mode = RepMode.NotSet
+                cycle_count += 9
+                self._state.rep_do_nothing = self._state.GetCX() == 0
+
+            address = (self._state.cs * 16 + self._state.ip) & MemMask
+            next_opcode = GetPcByte()
+
+            self._state.rep_opcode = next_opcode  # TODO: only allow for certain instructions
+
+            if opcode == 0xf2:
+                self._state.rep_addr = instr_start
+                if next_opcode in (0xa6, 0xa7, 0xae, 0xaf):
+                    self._state.rep_mode = RepMode.REPNZ
+                else:
+                    self._state.rep_mode = RepMode.REP
+            elif opcode == 0xf3:
+                self._state.rep_addr = instr_start
+                if next_opcode in (0xa6, 0xa7, 0xae, 0xaf):
+                    self._state.rep_mode = RepMode.REPE_Z
+                else:
+                    self._state.rep_mode = RepMode.REP
+            else:
+                self._state.segment_override_set = True  # TODO: move up
+                cycle_count += 2
+
+            opcode = next_opcode
+
+        if opcode == 0x00:
+            if _terminate_on_off_the_rails == True:
+                self._state.crash_counter += 1
+                if self._state.crash_counter >= 5:
+                    _stop_reason = f'Terminating because of {_state.crash_counter}x 0x00 opcode ({address:06x})'
+                    return -1
+        else:
+            self._state.crash_counter = 0
+
+        # main instruction handling
+        if opcode in self._ops:
+            cycle_count += self._ops[opcode](opcode)
+        # special cases
+        elif opcode == 0x9d:
+            before = self._state.GetFlagT()
+            self._state.flags = pop()
+            if self._state.GetFlagT() and before == False:
+                back_from_trace = True
+            self._state.FixFlags()
+
+            cycle_count += 12
+
+        elif opcode == 0xcf:
+            # IRET
+            before = self._state.GetFlagT()
+
+            self._state.ip = pop()
+            self._state.cs = pop()
+            self._state.flags = pop()
+            self._state.FixFlags()
+
+            if self._state.GetFlagT() and before == False:
+                back_from_trace = True
+
+            cycle_count += 32  // 44
+
+        else:
+            print(f'opcode {opcode:x} not implemented')
+
+        self.PrefixEnd(opcode)
+
+        if cycle_count == 0:
+            cycle_count = 1  # TODO workaround
+
+        self._state.clock += cycle_count
+
+        # tick I/O
+        self._io.Tick(cycle_count, self._state.clock)
+
+        if self._state.GetFlagT() and back_from_trace == False and self._state.inhibit_interrupts == False:
+            self.InvokeInterrupt(self._state.ip, 1, False)
+
+        return cycle_count
+
+    def Reset(self):
+        self._state.cs = 0xf000
+        self._state.ip = 0xfff0
+        self._state.in_hlt = False
+        self._state.segment_override_set = False
+        self._state.rep = False
+
+    def GetStopReason(self) -> str:
+        rc = self._stop_reason
+        self._stop_reason = ''
+        return rc
+
+    def GetBreakpoints(self) -> set:
+        return self._breakpoints
+
+    def AddBreakpoint(self, a: int):
+        self._breakpoints.add(a)
+
+    def DelBreakpoint(self, a):
+        del self._breakpoints[a]
+
+    def ClearBreakpoints(self):
+        self._breakpoints = set()
+
+    # is only once
+    def SetIgnoreBreakpoints(self):
+        self._ignore_breakpoints = True
+
+    def Op_NOP(self, opcode: int) -> int:  # 0x90
+        return 4
+
+    def Op_ADD_AL_xx(self, opcode: int) -> int:  # 0x04, 0x14
+        # ADD AL,xx
+        v = self.GetPcByte()
+
+        flag_c = self._state.GetFlagC()
+        use_flag_c = False
+
+        result = self._state.al + v
+
+        if opcode == 0x14:
+            if flag_c:
+                result += 1
+            use_flag_c = True
+
+        self.SetAddSubFlags(False, self._state.al, v, result, False, flag_c if use_flag_c else False)
+
+        self._state.al = result & 255
+
+        return 3
+
+    def Op_MOV_reg_ib(self, opcode: int) -> int:  # 0xb.
+        # MOV reg,ib
+        reg = opcode & 0x07
+        word = (opcode & 0x08) == 0x08
+
+        v = self.GetPcByte()
+        if word:
+            v |= self.GetPcByte() << 8
+
+        self.PutRegister(reg, word, v)
+
+        return 2
+
+    def Op_CMP_OR_XOR_etc(self, opcode: int) -> int:  # 0x80-0x83
+        # CMP and others
+        o1 = self.GetPcByte()
+
+        mod = o1 >> 6
+        reg = o1 & 7
+
+        function = (o1 >> 3) & 7
+
+        r1 = 0
+        a_valid = False
+        seg = 0
+        addr = 0
+
+        r2 = 0
+
+        word = False
+
+        is_logic = False
+        is_sub = False
+
+        result = 0
+        cycles = 0
+
+        if opcode == 0x80:
+            (r1, a_valid, seg, addr, cycles) = self.GetRegisterMem(reg, mod, False)
+            r2 = self.GetPcByte()
+
+        elif opcode == 0x81:
+            (r1, a_valid, seg, addr, cycles) = self.GetRegisterMem(reg, mod, True)
+            r2 = self.GetPcWord()
+            word = True
+
+        elif opcode == 0x82:
+            (r1, a_valid, seg, addr, cycles) = self.GetRegisterMem(reg, mod, False)
+            r2 = self.GetPcByte()
+
+        elif opcode == 0x83:
+            (r1, a_valid, seg, addr, cycles) = self.GetRegisterMem(reg, mod, True)
+
+            r2 = self.GetPcByte()
+            if (r2 & 128) == 128:
+                r2 |= 0xff00
+
+            word = True
+
+        apply = True
+        use_flag_c = False
+
+        if function == 0:
+            result = r1 + r2
+
+        elif function == 1:
+            result = r1 | r2
+            is_logic = True
+
+        elif function == 2:
+            result = r1 + r2 + self._state.GetFlagC()
+            use_flag_c = True
+
+        elif function == 3:
+            result = r1 - r2 - self._state.GetFlagC()
+            is_sub = True
+            use_flag_c = True
+
+        elif function == 4:
+            result = r1 & r2
+            is_logic = True
+            self._state.SetFlagC(False)
+
+        elif function == 5:
+            result = r1 - r2
+            is_sub = True
+
+        elif function == 6:
+            result = r1 ^ r2
+            is_logic = True
+
+        elif function == 7:
+            result = r1 - r2
+            is_sub = True
+            apply = False
+
+        if is_logic:
+            self.SetLogicFuncFlags(word, result)
+        else:
+            self.SetAddSubFlags(word, r1, r2, result, is_sub, self._state.GetFlagC() if use_flag_c else False)
+
+        if apply:
+            put_cycles = self.UpdateRegisterMem(reg, mod, a_valid, seg, addr, word, result)
+            cycles += put_cycles
+
+        return 3 + cycles

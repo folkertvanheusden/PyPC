@@ -1,6 +1,6 @@
 from enum import Enum
 
-class State8086:
+class State8088:
     class RepMode(Enum):
         NotSet = 0
         REPE_Z = 1
