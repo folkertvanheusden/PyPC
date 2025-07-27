@@ -2270,7 +2270,7 @@ class i8088:
         result = before - v
 
         self.SetAddSubFlags(True, before, v, result, True, False)
-        self._state.SetAX(result)
+        self._state.SetAX(result & 0xffff)
 
         return 3
 
