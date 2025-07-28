@@ -1683,7 +1683,7 @@ class i8088:
             if word:
                 dx_ax = (self._state.GetDX() << 16) | self._state.GetAX()
 
-                if r1 == 0 or dx_ax / r1 >= 0x10000:
+                if r1 == 0 or dx_ax // r1 >= 0x10000:
                     self._state.SetZSPFlags(self._state.GetAH())
                     self._state.SetFlagA(False)
                     self.InvokeInterrupt(self._state._ip, 0x00, False)  # divide by zero or divisor too small
@@ -1694,7 +1694,7 @@ class i8088:
             else:
                 ax = self._state.GetAX()
 
-                if r1 == 0 or ax / r1 >= 0x100:
+                if r1 == 0 or ax // r1 >= 0x100:
                     self._state.SetZSPFlags(self._state.GetAH())
                     self._state.SetFlagA(False)
                     self.InvokeInterrupt(self._state._ip, 0x00, False)  # divide by zero or divisor too small
@@ -1728,7 +1728,7 @@ class i8088:
                 ax = self.ToSigned16(self._state.GetAX())
                 r1s = self.ToSigned8(r1)
 
-                if r1s == 0 or ax / r1s > 0x7fff or ax // r1s < -0x8000:
+                if r1s == 0 or ax // r1s > 0x7fff or ax // r1s < -0x8000:
                     self._state.SetZSPFlags(self._state.GetAH())
                     self._state.SetFlagA(False)
                     self.InvokeInterrupt(self._state._ip, 0x00, False)  # divide by zero or divisor too small
@@ -2536,7 +2536,7 @@ class i8088:
         b2 = self.GetPcByte()
 
         if b2 != 0:
-            self._state.SetAH(self._state.GetAL() / b2)
+            self._state.SetAH(self._state.GetAL() // b2)
             self._state._al %= b2
 
             self._state.SetZSPFlags(self._state.GetAL())
