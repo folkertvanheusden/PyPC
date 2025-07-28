@@ -90,9 +90,9 @@ for test in j:
         b.WriteByte(ram[0], ram[1])
 
     while True:
-        rc = p.Tick();
+        rc = p.Tick()
         if rc == -1:
-            break;
+            break
         if p.IsProcessingRep() == False:
             break
 

@@ -9,7 +9,7 @@ class IO:
         self._b = b
         self._io_map = dict()
         self._pic = i8259.i8259()
-        self._i8237 = i8237.i8237()
+        self._i8237 = i8237.i8237(b)
         self._tick_devices = []
 
         for device in devices:
@@ -51,6 +51,8 @@ class IO:
         if addr == 0x0210:  # verify expansion bus data
             return 0xa5;
 
+        print('IO {addr:04x} not handled for IN')
+
         return 0xffff if b16 else 0xff
 
     def Tick(self, ticks: int, clock: int) -> bool:
@@ -74,5 +76,7 @@ class IO:
                     rc |= self._io_map[next_port].IO_Write(next_port, value >> 8)
 
             return rc
+
+        print('IO {addr:04x} not handled for OUT')
 
         return False

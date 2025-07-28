@@ -7,10 +7,13 @@ class Memory(Device):
 
     @override
     def ReadByte(self, address: int) -> int:
+        # print(f'READ {self._m[address]:02x} from {address:06x}')
         return self._m[address]
 
     @override
     def WriteByte(self, address: int, v: int):
+        assert v >= 0 and v <= 255
+        # print(f'WRTE {v:02x} to {address:06x}')
         self._m[address] = v
 
     @override

@@ -1,7 +1,5 @@
 from typing import List, Tuple
 import abc
-import i8237
-import i8259
 
 class Device(abc.ABC):
     def __init__(self):
@@ -56,7 +54,7 @@ class Device(abc.ABC):
     def GetIRQNumber(self) -> int:
         pass
 
-    def SetDma(self, dma_instance: i8237):
+    def SetDma(self, dma_instance):
         pass
 
     def ScheduleInterrupt(self, cycles_delay: int):
@@ -70,7 +68,7 @@ class Device(abc.ABC):
                 return True
         return False
 
-    def SetPic(self, pic_instance: i8259):
+    def SetPic(self, pic_instance):
         self._pic = pic_instance
 
     def SetBus(self, bus_instance):

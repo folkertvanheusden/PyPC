@@ -26,7 +26,7 @@ class Rom(Device):
 
     @override
     def GetAddressList(self) -> list[Tuple[int, int]]:
-        return ((self._offset, len(self._contents)))
+        return [(self._offset, len(self._contents))]
 
     @override
     def IO_Read(self, port: int) -> int:

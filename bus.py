@@ -57,6 +57,8 @@ class Bus:
             if address >= entry.start_addr and address < entry.end_addr:
                 return (entry.device.ReadByte(address), entry.wait_states)
 
+        print(f'ReadByte from {address:06x} UNHANDLED')
+
         return (0xff, 1)  # TODO
 
     def WriteByte(self, address: int, v: int) -> int:
@@ -65,5 +67,7 @@ class Bus:
             if address >= entry.start_addr and address < entry.end_addr:
                 entry.device.WriteByte(address, v)
                 return entry.wait_states
+
+        print(f'WriteByte to {address:06x} ({v:02x}) UNHANDLED')
 
         return 1  #  TODO

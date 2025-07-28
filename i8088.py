@@ -1202,6 +1202,7 @@ class i8088:
 
         cx = self._state.GetCX()
         cx -= 1
+        cx &= 0xffff
         self._state.SetCX(cx)
 
         newAddresses = (self._state._ip + self.ToSigned8(to)) & 0xffff

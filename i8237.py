@@ -1,7 +1,8 @@
 from typing import override, List, Tuple
+import device
 
 # DMA
-class i8237:
+class i8237(device.Device):
     class FlipFlop:
         def __init__(self):
             self._state = False
@@ -46,18 +47,18 @@ class i8237:
 
     def __init__(self, b):
         self._channel_page: List[int] = [ 0 ] * 4
-        self._channel_address_register: List[b16buffer] = [ ]
-        self._channel_word_count: List[b16buffer] = [ ]
+        self._channel_address_register: List[b16buffer] = [ None ] * 4
+        self._channel_word_count: List[b16buffer] = [ None ] * 4
         self._command: int = 0
         self._channel_mask: List[bool] = [ False ] * 4
         self._reached_tc: List[bool] = [ False ] * 4
         self._channel_mode: List[int] = [ 0 ] * 4
-        self._ff = FlipFlop()
+        self._ff = self.FlipFlop()
         self._dma_enabled = True
 
         for i in range(4):
-            self._channel_address_register[i] = b16buffer(_ff)
-            self._channel_word_count[i] = b16buffer(_ff)
+            self._channel_address_register[i] = self.b16buffer(self._ff)
+            self._channel_word_count[i] = self.b16buffer(self._ff)
             self._reached_tc[i] = False
 
         self._b = b
@@ -73,11 +74,11 @@ class i8237:
     @override
     def RegisterDevice(self, mappings: dict):
         for i in range(0x10):
-            self._mappings[i] = this
-        self._mappings[0x81] = this
-        self._mappings[0x82] = this
-        self._mappings[0x83] = this
-        self._mappings[0x87] = this
+            mappings[i] = self
+        mappings[0x81] = self
+        mappings[0x82] = self
+        mappings[0x83] = self
+        mappings[0x87] = self
 
     def TickChannel0(self):
         # RAM refresh
