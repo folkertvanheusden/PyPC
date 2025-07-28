@@ -1950,6 +1950,7 @@ class i8088:
             # STOSB
             self.WriteMemByte(self._state._es, self._state._di, self._state.GetAL())
             self._state._di += -1 if self._state.GetFlagD() else 1
+            self._state._di &= 0xffff
             return 11
         return 0  # TODO
 
@@ -1958,6 +1959,7 @@ class i8088:
             # STOSW
             self.WriteMemWord(self._state._es, self._state._di, self._state.GetAX())
             self._state._di += -2 if self._state.GetFlagD() else 2
+            self._state._di &= 0xffff
             return 11
         return 0  # TODO
 
@@ -2480,6 +2482,7 @@ class i8088:
             # LODSB
             self._state.SetAL(self.ReadMemByte(self._state._segment_override if self._state._segment_override_set else self._state._ds, self._state._si))
             self._state._si += -1 if self._state.GetFlagD() else 1
+            self._state._si &= 0xffff
 
             return 5
 
@@ -2490,6 +2493,7 @@ class i8088:
             # LODSW
             self._state.SetAX(self.ReadMemWord(self._state._segment_override if self._state._segment_override_set else self._state._ds, self._state._si))
             self._state._si += -2 if self._state.GetFlagD() else 2
+            self._state._si &= 0xffff
 
             return 5
 
@@ -2529,6 +2533,7 @@ class i8088:
             result = self._state.GetAL() - v
             self.SetAddSubFlags(False, self._state.GetAL(), v, result, True, False)
             self._state._di += -1 if self._state.GetFlagD() else 1
+            self._state._di &= 0xffff
 
             return 15
 
@@ -2542,6 +2547,7 @@ class i8088:
             result = ax - v
             self.SetAddSubFlags(True, ax, v, result, True, False)
             self._state._di += -2 if self._state.GetFlagD() else 2
+            self._state._di &= 0xffff
 
             return 15
 
