@@ -7,6 +7,9 @@ You need to have 'GLABIOS.ROM' in the directory from which you start 'main.py'. 
 ![main screen](images/pypc001.png)
 
 
+Note that this is a manual translation of https://github.com/folkertvanheusden/Dotxt
+
+
 Folkert van Heusden
 
 released under MIT license
