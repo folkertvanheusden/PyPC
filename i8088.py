@@ -1362,8 +1362,10 @@ class i8088:
 
             # SAL/SHL
             for i in range(count):
+                new_a_carry = (v1 & 0x08) == 0x08
                 new_carry = (v1 & check_bit) == check_bit
                 v1 <<= 1
+                self._state.SetFlagA(new_a_carry)
                 self._state.SetFlagC(new_carry)
 
             set_flags = count != 0
@@ -1382,6 +1384,8 @@ class i8088:
                 self._state.SetFlagC(new_carry)
 
             set_flags = count != 0
+
+            self._state.SetFlagA(False)
 
             if count == 1:
                 self._state.SetFlagO((org_v1 & check_bit) != 0)
@@ -1430,6 +1434,8 @@ class i8088:
             set_flags = count != 0
             if set_flags:
                 self._state.SetFlagO(False)
+
+            self._state.SetFlagA(False)
 
             cycle_count += 2
 
