@@ -15,10 +15,11 @@ class IO:
         for device in devices:
             device.SetDma(self._i8237)
             device.SetPic(self._pic)
-            device.SetBus(self.b)
+            device.SetBus(self._b)
 
             if device.Ticks():
-                self._tick_devices.Add(device)
+                print(f'adding {device}')
+                self._tick_devices.append(device)
 
         devices.append(self._i8237)
         devices.append(self._pic);
@@ -51,7 +52,7 @@ class IO:
         if addr == 0x0210:  # verify expansion bus data
             return 0xa5;
 
-        print('IO {addr:04x} not handled for IN')
+        print(f'IO {addr:04x} not handled for IN')
 
         return 0xffff if b16 else 0xff
 
@@ -68,7 +69,7 @@ class IO:
         rc = False
 
         if addr in self._io_map:
-            rc |= _io_map[addr].IO_Write(addr, value & 255)
+            rc |= self._io_map[addr].IO_Write(addr, value & 255)
 
             if b16:
                 next_port = (addr + 1) & 0xffff
@@ -77,6 +78,6 @@ class IO:
 
             return rc
 
-        print('IO {addr:04x} not handled for OUT')
+        print(f'IO {addr:04x} not handled for OUT')
 
         return False

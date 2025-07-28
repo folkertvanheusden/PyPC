@@ -31,11 +31,9 @@ class i8253(device.Device):
     @override
     def GetStat(self) -> List[str]:
         out_ = []
-
         for i in range(3):
             t = self._timers[i]
             out_.append(f'Timer {i}: counter cur/prv/ini {t.counter_cur}/{t.counter_prv}/{t.counter_ini}, mode {t.mode} ({_mode_names[t.mode]}) running {t.is_running} pending {t.is_pending}, BCD: {t.is_bcd}')
-
         return out_
 
     @override
@@ -56,13 +54,13 @@ class i8253(device.Device):
     @override
     def IO_Read(self, port: int) -> int:
         if port == 0x0040:
-            return GetCounter(0)
+            return self.GetCounter(0)
 
         if port == 0x0041:
-            return GetCounter(1)
+            return self.GetCounter(1)
 
         if port == 0x0042:
-            return GetCounter(2)
+            return self.GetCounter(2)
 
         return 0xaa
 
@@ -76,6 +74,8 @@ class i8253(device.Device):
             self.LatchCounter(2, value)
         elif port == 0x0043:
             self.Command(value)
+        else:
+            print(f'error {port:04x}')
 
         return self._timers[0].is_pending or self._timers[1].is_pending or self._timers[2].is_pending
 
@@ -92,7 +92,7 @@ class i8253(device.Device):
         return 0xee
 
     @override
-    def SetDma(dma_instance: i8237.i8237):
+    def SetDma(self, dma_instance: i8237.i8237):
         self._i8237 = dma_instance
 
     def LatchCounter(self, nr: int, v: int):
@@ -109,7 +109,7 @@ class i8253(device.Device):
                     self._timers[nr].counter_ini |= v
                 else:
                     self._timers[nr].counter_ini &= 0x00ff
-                    self._timers[nr].counter_ini |= (ushort)(v << 8)
+                    self._timers[nr].counter_ini |= v << 8
 
             self._timers[nr].latch_n_cur -= 1
             self._timers[nr].latch_n_cur &= 0xffff
@@ -124,7 +124,7 @@ class i8253(device.Device):
     def AddNoiseToLSB(self, nr: int) -> int:
         current_prv = self._timers[nr].counter_prv
 
-        self._timers[nr].counter_prv = _timers[nr].counter_cur
+        self._timers[nr].counter_prv = self._timers[nr].counter_cur
 
         if abs(self._timers[nr].counter_cur - current_prv) >= 2:
             return (self._timers[nr].counter_cur ^ 1 if random.choice([True, False]) else self._timers[nr].counter_cur) & 0xff

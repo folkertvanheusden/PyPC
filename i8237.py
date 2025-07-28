@@ -8,12 +8,12 @@ class i8237(device.Device):
             self._state = False
 
         def get_state(self) -> bool:
-            rc = state
-            state = not state
+            rc = self._state
+            self._state = not self._state
             return rc
 
         def reset(self):
-            state = False
+            self._state = False
 
     class b16buffer:
         def __init__(self, f):
@@ -41,7 +41,7 @@ class i8237(device.Device):
             low_high = self._f.get_state()
 
             if low_high:
-                return _value >> 8
+                return self._value >> 8
 
             return self._value & 0xff
 
