@@ -7,6 +7,7 @@ import i8255
 import mda
 import rom
 import time
+import xtide
 
 def GetRegisters(state) -> str:
     return f'{state.GetFlagsAsString()} AX:{state.GetAX():04x} BX:{state.GetBX():04x} CX:{state.GetCX():04x} DX:{state.GetDX():04x} SP:{state.GetSP():04x} BP:{state.GetBP():04x} SI:{state.GetSI():04x} DI:{state.GetDI():04x} flags:{state.GetFlags():04x} ES:{state.GetES():04x} CS:{state.GetCS():04x} SS:{state.GetSS():04x} DS:{state.GetDS():04x} IP:{state.GetIP():04x}'
@@ -15,9 +16,11 @@ devices = []
 devices.append(i8253.i8253())
 devices.append(i8255.i8255())
 devices.append(mda.MDA())
+devices.append(xtide.XTIDE(('test.img',)));
 
 roms = []
-roms.append(rom.Rom('GLABIOS.ROM', 0xf000 * 16 + 0xe000))
+roms.append(rom.Rom('roms/GLABIOS.ROM', 0xf000 * 16 + 0xe000))
+roms.append(rom.Rom('roms/ide_xt.bin', 0xd000 * 16 + 0x0000))
 
 b = bus.Bus(1024 * 1024, devices, roms)
 p = i8088.i8088(b, devices, True)
