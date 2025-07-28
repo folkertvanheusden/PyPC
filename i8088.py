@@ -1187,7 +1187,10 @@ class i8088:
 
         v &= 0xffff if word else 0xff
 
-        put_cycles = self.UpdateRegisterMem(reg, mod, a_valid, seg, addr, word, v)
+        if mod != 3 or reg != 4:
+            put_cycles = self.UpdateRegisterMem(reg, mod, a_valid, seg, addr, word, v)
+        else:
+            put_cycles = 0
 
         return cycle_count + put_cycles
 
