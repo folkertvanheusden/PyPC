@@ -1610,7 +1610,7 @@ class i8088:
             cycle_count += put_cycles
         elif function == 3:
             # NEG
-            result = -r1 & 0xffff
+            result = -r1 & (0xffff if word else 0xff)
 
             self.SetAddSubFlags(word, 0, r1, -r1, True, False)
             self._state.SetFlagC(r1 != 0)
