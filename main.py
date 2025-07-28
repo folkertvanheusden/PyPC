@@ -37,5 +37,5 @@ while True:
     if c_diff >= 4700000:
         p_cycles = cur_cycles
         now = time.time()
-        print(f'\n{100 * c_diff / (now - p_time) / 4700000:.2f}%')
+        print(f'\033[1;82H{100 * c_diff / (now - p_time) / 4700000:.2f}%', end='')
         p_time = now

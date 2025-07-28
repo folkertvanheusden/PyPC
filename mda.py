@@ -6,6 +6,8 @@ class MDA(device.Device):
         self._ram: bytearray = bytearray(b'\xff' * 16384)
         self._hsync: bool = False
 
+        print('\033[2J', end='')   # clear screen
+
     @override
     def GetName(self) -> str:
         return "MDA"
@@ -44,20 +46,33 @@ class MDA(device.Device):
 
         self.UpdateConsole(use_offset)
 
+    def EmulateTextDisplay(self, x: int, y: int, character: int, attributes: int):
+        print(f'\033[{y + 1};{x + 1}H', end='')   # position cursor
+
+        colormap = ( 0, 4, 2, 6, 1, 5, 3, 7 )
+        fg = colormap[(attributes >> 4) & 7]
+        bg = colormap[attributes & 7]
+
+        print(f'\033[0;{40 + fg};{30 + bg}m', end='')   # set attributes (colors)
+        if (attributes & 8) == 8:
+            print(f'\033[1m', end='')   # bright
+
+        if character > 0:
+            print(f'{character:c}', end='', flush=True)
+
     def UpdateConsole(self, offset: int):
         if offset >= 80 * 25 * 2:
             return
 
-        y = offset / (80 * 2)
-        x = (offset % (80 * 2)) / 2
+        y = offset // (80 * 2)
+        x = (offset % (80 * 2)) // 2
 
         char_base_offset = offset
 
         character = self._ram[char_base_offset + 0]
         attributes = self._ram[char_base_offset + 1]
 
-        #EmulateTextDisplay(x, y, character, attributes)
-        print(f'{character:c}', end='', flush=True)
+        self.EmulateTextDisplay(x, y, character, attributes)
 
     @override
     def ReadByte(self, offset: int) -> int:
