@@ -2017,7 +2017,9 @@ class i8088:
             self.WriteMemByte(self._state._es, self._state._di, v)
 
             self._state._si += -1 if self._state.GetFlagD() else 1
+            self._state._si &= 0xffff
             self._state._di += -1 if self._state.GetFlagD() else 1
+            self._state._di &= 0xffff
 
             return 18
 
@@ -2029,7 +2031,9 @@ class i8088:
             self.WriteMemWord(self._state._es, self._state._di, self.ReadMemWord(self._state._segment_override if self._state._segment_override_set else self._state._ds, self._state._si))
 
             self._state._si += -2 if self._state.GetFlagD() else 2
+            self._state._si &= 0xffff
             self._state._di += -2 if self._state.GetFlagD() else 2
+            self._state._di &= 0xffff
 
             return 26
 
@@ -2044,7 +2048,9 @@ class i8088:
             result = v1 - v2
 
             self._state._si += -1 if self._state.GetFlagD() else 1
+            self._state._si &= 0xffff
             self._state._di += -1 if self._state.GetFlagD() else 1
+            self._state._di &= 0xffff
 
             self.SetAddSubFlags(False, v1, v2, result, True, False)
 
@@ -2061,7 +2067,9 @@ class i8088:
             result = v1 - v2
 
             self._state._si += -2 if self._state.GetFlagD() else 2
+            self._state._si &= 0xffff
             self._state._di += -2 if self._state.GetFlagD() else 2
+            self._state._di &= 0xffff
 
             self.SetAddSubFlags(True, v1, v2, result, True, False)
 
