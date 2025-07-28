@@ -1999,7 +1999,7 @@ class i8088:
     def Op_XLATB(self, opcode: int) -> int:  # 0xd7
         # XLATB
         old_al = self._state.GetAL()
-        self._state.SetAl(self.ReadMemByte(self._state._segment_override if self._state._segment_override_set else  self._state._ds, (self._state.GetBX() + self._state.GetAL()) & 0xffff))
+        self._state.SetAL(self.ReadMemByte(self._state._segment_override if self._state._segment_override_set else  self._state._ds, (self._state.GetBX() + self._state.GetAL()) & 0xffff))
         return 11
 
     def Op_MOVSB(self, opcode: int) -> int:  # 0xa4

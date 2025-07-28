@@ -34,7 +34,7 @@ class IO:
         return _pic
 
     def In(self, addr: int, b16: bool) -> int:
-        if _test_mode:
+        if self._test_mode:
             return 65535
 
         if addr in self._io_map:
@@ -60,7 +60,7 @@ class IO:
         return rc
 
     def Out(self, addr: int, value: int, b16: bool) -> bool:
-        if _test_mode:
+        if self._test_mode:
             return False
 
         rc = False
