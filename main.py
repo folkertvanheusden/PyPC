@@ -3,6 +3,7 @@
 import bus
 import i8088
 import i8253
+import i8255
 import mda
 import rom
 
@@ -11,6 +12,7 @@ def GetRegisters(state) -> str:
 
 devices = []
 devices.append(i8253.i8253())
+devices.append(i8255.i8255())
 devices.append(mda.MDA())
 
 roms = []

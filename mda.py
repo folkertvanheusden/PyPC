@@ -3,7 +3,7 @@ import device
 
 class MDA(device.Device):
     def __init__(self):
-        self._m: bytearray = bytearray(b'\xff' * 16384)
+        self._ram: bytearray = bytearray(b'\xff' * 16384)
         self._hsync: bool = False
 
     @override
@@ -42,9 +42,9 @@ class MDA(device.Device):
         use_offset = (offset - 0xb0000) & 0x3fff
         self._ram[use_offset] = value
 
-        UpdateConsole(use_offset)
+        self.UpdateConsole(use_offset)
 
-    def UpdateConsole(self, addr: int):
+    def UpdateConsole(self, offset: int):
         if offset >= 80 * 25 * 2:
             return
 
@@ -57,7 +57,7 @@ class MDA(device.Device):
         attributes = self._ram[char_base_offset + 1]
 
         #EmulateTextDisplay(x, y, character, attributes)
-        print(f'{character:c}', end='')
+        print(f'{character:c}', end='', flush=True)
 
     @override
     def ReadByte(self, offset: int) -> int:

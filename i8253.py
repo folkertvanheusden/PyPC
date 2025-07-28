@@ -206,6 +206,6 @@ class i8253(device.Device):
             self._clock -= 4
 
         if interrupt:
-            _pic.RequestInterruptPIC(_irq_nr)  # Timers are on IRQ0
+            self._pic.RequestInterruptPIC(self._irq_nr)  # Timers are on IRQ0
 
         return interrupt

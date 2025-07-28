@@ -18,7 +18,6 @@ class IO:
             device.SetBus(self._b)
 
             if device.Ticks():
-                print(f'adding {device}')
                 self._tick_devices.append(device)
 
         devices.append(self._i8237)
@@ -32,7 +31,7 @@ class IO:
         self._test_mode = test_mode;
 
     def GetPIC(self) -> i8259:
-        return _pic
+        return self._pic
 
     def In(self, addr: int, b16: bool) -> int:
         if self._test_mode:
@@ -52,7 +51,7 @@ class IO:
         if addr == 0x0210:  # verify expansion bus data
             return 0xa5;
 
-        print(f'IO {addr:04x} not handled for IN')
+        #print(f'IO {addr:04x} not handled for IN')
 
         return 0xffff if b16 else 0xff
 
@@ -78,6 +77,6 @@ class IO:
 
             return rc
 
-        print(f'IO {addr:04x} not handled for OUT')
+        #print(f'IO {addr:04x} not handled for OUT')
 
         return False

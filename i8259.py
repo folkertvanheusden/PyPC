@@ -130,7 +130,7 @@ class i8259(device.Device):
 
                         else:
                             if self._int_in_service != -1:
-                                mask = ~(1 << _int_in_service)
+                                mask = ~(1 << self._int_in_service)
                                 self._irr &= mask
                                 self._isr &= mask
                                 self._int_in_service = -1
