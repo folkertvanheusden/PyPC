@@ -138,3 +138,5 @@ for test in j:
 
 print(f'Total count: {count}, ok: {ok}, failed: {(count - ok) / count * 100:.2f}%')
 print(f'Took: {time.time() - start:.2f}')
+
+sys.exit(0 if ok == count else 1)
