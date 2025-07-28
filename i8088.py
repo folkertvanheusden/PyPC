@@ -1726,10 +1726,15 @@ class i8088:
                 if r1 == 0 or ax // r1 >= 0x100:
                     self._state.SetZSPFlags(self._state.GetAH())
                     self._state.SetFlagA(False)
+                    self._state.SetFlagP(self._state.GetAL())
                     self.InvokeInterrupt(self._state._ip, 0x00, False)  # divide by zero or divisor too small
                 else:
-                    self._state.SetAL(ax // r1)
+                    self._state.SetFlagC((ax & 0x8000) != 0x8000)
+                    q = ax // r1
+                    self._state.SetAL(q)
+                    self._state.SetFlagO(q >= 0x100)
                     self._state.SetAH(ax % r1)
+                    self._state.SetZSPFlags(self._state.GetAH())
 
         elif function == 7:
             negate = self._state._rep_mode == state8088.State8088.RepMode.REP and self._state._rep
