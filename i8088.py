@@ -1638,15 +1638,22 @@ class i8088:
                 self._state.SetFlagO(flag)
 
                 cycle_count += 118
+
             else:
                 result = self._state.GetAL() * r1
                 if negate:
                     result = -result
-                self._state.SetAX(result & 0xffff)
+                result &= 0xffff
+                self._state.SetAX(result)
 
-                flag = self._state.GetAH() != 0
+                flag = (result >> 8) != 0
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
+
+                self._state.SetFlagS((result & 0x8000) != 0)
+                self._state.SetFlagA(False)
+                self._state.SetFlagZ((result >> 8) == 0)
+                self._state.SetFlagP(result >> 8)
 
                 cycle_count += 70
 
