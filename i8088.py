@@ -1631,7 +1631,7 @@ class i8088:
                 if negate:
                     dx_ax = -dx_ax
                 self._state.SetAX(dx_ax & 0xffff)
-                self._state.SetDX(dx_ax >> 16)
+                self._state.SetDX((dx_ax >> 16) & 0xffff)
 
                 flag = self._state.GetDX() != 0
                 self._state.SetFlagC(flag)
@@ -1642,7 +1642,7 @@ class i8088:
                 result = self._state.GetAL() * r1
                 if negate:
                     result = -result
-                self._state.SetAX(result)
+                self._state.SetAX(result & 0xffff)
 
                 flag = self._state.GetAH() != 0
                 self._state.SetFlagC(flag)
@@ -1659,15 +1659,16 @@ class i8088:
                 ax = self.ToSigned16(self._state.GetAX())
                 resulti = ax * self.ToSigned16(r1)
 
-                dx_ax = resulti
+                dx_ax = resulti & 0xffffffff
                 if negate:
-                    dx_ax = -dx_ax
+                    dx_ax = -dx_ax & 0xffffffff
                 self._state.SetAX(dx_ax & 0xffff)
-                self._state.SetDX(dx_ax >> 16)
+                self._state.SetDX((dx_ax >> 16) & 0xffff)
 
                 flag = self.ToSigned16(self._state.GetAX()) != resulti
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
+                self._state.SetFlagP(result >> 8)
 
                 cycle_count += 128
 
@@ -1675,14 +1676,17 @@ class i8088:
                 result = self.ToSigned8(self._state.GetAL()) * self.ToSigned8(r1)
                 if negate:
                     result = -result
-                self._state.SetAX(result)
+                self._state.SetAX(result & 0xffff)
 
                 self._state.SetFlagS((self._state.GetAH() & 128) == 128)
-                flag = self.ToSigned8(self._state.GetAL()) != self.ToSigned16(result)
+                flag = self.ToSigned8(self._state.GetAL()) != result
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
+                self._state.SetFlagP(result >> 8)
 
                 cycle_count += 80
+
+            self._state.SetFlagA(False)
 
         elif function == 6:
             self._state.SetFlagC(False)
