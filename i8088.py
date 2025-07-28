@@ -2584,9 +2584,17 @@ class i8088:
         # AAD
         b2 = self.GetPcByte()
 
-        self._state.SetAL((self._state.GetAL() + self._state.GetAH() * b2) & 0xff)
+        org_al = self._state.GetAL()
+        mul_result = self._state.GetAH() * b2
+        result = (org_al + mul_result) & 0xff
+        self._state.SetAL(result)
         self._state.SetAH(0)
-        self._state.SetZSPFlags(self._state.GetAL())
+        self._state.SetZSPFlags(result)
+        self._state.SetFlagC(result < org_al)
+
+        mul_result_8 = mul_result & 0xff
+        self._state.SetFlagO((((org_al ^ result) & (mul_result_8 ^ result)) & 0x80) != 0)
+        self._state.SetFlagA(((org_al ^ mul_result_8 ^ result) & 0x10) != 0)
 
         return 60
 
