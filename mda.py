@@ -1,10 +1,13 @@
 from typing import override, List, Tuple
 import device
+import time
+
 
 class MDA(device.Device):
     def __init__(self):
         self._ram: bytearray = bytearray(b'\xff' * 16384)
         self._hsync: bool = False
+        self._last_update: int = 0
 
         print('\033[2J', end='')   # clear screen
 
@@ -20,6 +23,9 @@ class MDA(device.Device):
     def RegisterDevice(self, mappings: dict):
         for port in range(0x3b0, 0x3c0):
             mappings[port] = self
+
+    def GetClock(self):
+        return self._last_update
 
     @override
     def GetAddressList(self) -> list[Tuple[int, int]]:
@@ -43,26 +49,30 @@ class MDA(device.Device):
     def WriteByte(self, offset: int, value: int):
         use_offset = (offset - 0xb0000) & 0x3fff
         self._ram[use_offset] = value
+        self._last_update += 1
 
-        self.UpdateConsole(use_offset)
+        print(self.UpdateConsole(use_offset), end='', flush=True)
 
     def EmulateTextDisplay(self, x: int, y: int, character: int, attributes: int):
-        print(f'\033[{y + 1};{x + 1}H', end='')   # position cursor
+        out = f'\033[{y + 1};{x + 1}H'   # position cursor
 
         colormap = ( 0, 4, 2, 6, 1, 5, 3, 7 )
         fg = colormap[(attributes >> 4) & 7]
         bg = colormap[attributes & 7]
 
-        print(f'\033[0;{40 + fg};{30 + bg}m', end='')   # set attributes (colors)
+        out += f'\033[0;{40 + fg};{30 + bg}m'   # set attributes (colors)
         if (attributes & 8) == 8:
-            print(f'\033[1m', end='')   # bright
+            out += f'\033[1m'   # bright
 
-        if character > 0:
-            print(f'{character:c}', end='', flush=True)
+        if character == 0:
+            character = 32
+        out += f'{character:c}'
+
+        return out
 
     def UpdateConsole(self, offset: int):
         if offset >= 80 * 25 * 2:
-            return
+            return ''
 
         y = offset // (80 * 2)
         x = (offset % (80 * 2)) // 2
@@ -72,7 +82,7 @@ class MDA(device.Device):
         character = self._ram[char_base_offset + 0]
         attributes = self._ram[char_base_offset + 1]
 
-        self.EmulateTextDisplay(x, y, character, attributes)
+        return self.EmulateTextDisplay(x, y, character, attributes)
 
     @override
     def ReadByte(self, offset: int) -> int:

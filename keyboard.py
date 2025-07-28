@@ -18,7 +18,7 @@ class Keyboard(device.Device):
         return self._irq_nr
 
     def PushKeyboardScancode(self, scan_code: int):
-        _keyboard_buffer.put(scan_code)
+        self._keyboard_buffer.put(scan_code)
 
         self.ScheduleInterrupt(self._kb_key_irq)
 

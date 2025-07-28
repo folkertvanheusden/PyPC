@@ -757,7 +757,7 @@ class i8088:
             if self._terminate_on_off_the_rails == True:
                 self._state._crash_counter += 1
                 if self._state._crash_counter >= 5:
-                    _stop_reason = f'Terminating because of {_state._crash_counter}x 0x00 opcode ({address:06x})'
+                    _stop_reason = f'Terminating because of {self._state._crash_counter}x 0x00 opcode ({address:06x})'
                     return -1
         else:
             self._state._crash_counter = 0

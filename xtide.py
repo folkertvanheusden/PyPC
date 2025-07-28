@@ -27,9 +27,9 @@ class XTIDE(device.Device):
         for i in range(0, length, 2):
             word = 0
             if i < len(what):
-                word |= what[i] << 8
+                word |= ord(what[i]) << 8
             if i + 1 < len(what):
-                word |= what[i + 1]
+                word |= ord(what[i + 1])
             self.PushSectorBufferWord(word)
 
     def CMDIdentifyDrive(self):
@@ -207,12 +207,12 @@ class XTIDE(device.Device):
 
     @override
     def IO_Read(self, port: int) -> int:
-        register = (port - 0x300) / 2
+        register = (port - 0x300) // 2
 
         rc = 0xee
 
         if port == 0x300:  # Data register
-            if self._sector_buffer_offset < len(_sector_buffer):
+            if self._sector_buffer_offset < len(self._sector_buffer):
                 rc = self._sector_buffer[self._sector_buffer_offset]
                 self._sector_buffer_offset += 1
 
@@ -239,12 +239,12 @@ class XTIDE(device.Device):
 
     @override
     def IO_Write(self, port: int, value: int) -> bool:
-        register = (port - 0x300) / 2
+        register = (port - 0x300) // 2
         self._registers[register] = value
 
         if port == 0x300:  # data register
             if self._sector_buffer_offset < self._sector_buffer.Length:
-                self._sector_buffer[self._sector_buffer_offset] = value  # FIXME
+                self._sector_buffer[self._sector_buffer_offset] = value.to_bytes(1, byteorder='big')  # FIXME
                 self._sector_buffer_offset += 1
 
             if self._sector_buffer_offset == len(self._sector_buffer):

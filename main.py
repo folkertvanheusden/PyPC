@@ -7,6 +7,7 @@ import i8255
 import keyboard
 import mda
 import rom
+import telnet
 import time
 import xtide
 
@@ -18,8 +19,11 @@ devices.append(i8253.i8253())
 kb = keyboard.Keyboard()
 devices.append(kb)
 devices.append(i8255.i8255(kb))
-devices.append(mda.MDA())
-devices.append(xtide.XTIDE(('test.img',)));
+scr = mda.MDA()
+devices.append(scr)
+devices.append(xtide.XTIDE(('harddisk.img',)));
+
+t = telnet.Telnet(2300, kb, scr)
 
 roms = []
 roms.append(rom.Rom('roms/GLABIOS.ROM', 0xf000 * 16 + 0xe000))
