@@ -1511,11 +1511,13 @@ class i8088:
             self._state.SetFlagO(v == 0x8000)
             self._state.SetFlagA((v & 15) == 0)
 
+        v &= 0xffff
+
         self._state.SetFlagS((v & 0x8000) == 0x8000)
         self._state.SetFlagZ(v == 0)
         self._state.SetFlagP(v)
 
-        self.PutRegister(reg, True, v & 0xffff)
+        self.PutRegister(reg, True, v)
 
         return 3
 
