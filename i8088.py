@@ -1472,6 +1472,7 @@ class i8088:
 
         if opcode == 0xca or opcode == 0xc8:
             self._state._sp += nToRelease
+            self._state._sp &= 0xffff
             return 33 if opcode == 0xca else 24
 
         return 34 if opcode == 0xcb else 20
@@ -1879,6 +1880,7 @@ class i8088:
         # RET
         self._state._ip = self.pop()
         self._state._sp += nToRelease
+        self._state._sp &= 0xffff
 
         return 16
 
