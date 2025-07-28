@@ -972,13 +972,15 @@ class i8088:
             is_sub = True
             apply = False
 
+        mask = 0xffff if word else 0xff
+
         if is_logic:
-            self.SetLogicFuncFlags(word, result & 0xffff)
+            self.SetLogicFuncFlags(word, result & mask)
         else:
             self.SetAddSubFlags(word, r1, r2, result, is_sub, self._state.GetFlagC() if use_flag_c else False)
 
         if apply:
-            put_cycles = self.UpdateRegisterMem(reg, mod, a_valid, seg, addr, word, result & 0xffff)
+            put_cycles = self.UpdateRegisterMem(reg, mod, a_valid, seg, addr, word, result & mask)
             cycles += put_cycles
 
         return 3 + cycles
