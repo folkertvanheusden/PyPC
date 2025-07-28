@@ -2463,7 +2463,7 @@ class i8088:
     def Op_LODSB(self, opcode: int) -> int:  # 0xac
         if self.PrefixMustRun():
             # LODSB
-            self._state.SetAL(self.ReadMemByte(self._state._segment_override if _state.segment_override_set else self._state._ds, self._state._si))
+            self._state.SetAL(self.ReadMemByte(self._state._segment_override if self._state._segment_override_set else self._state._ds, self._state._si))
             self._state._si += -1 if self._state.GetFlagD() else 1
 
             return 5
@@ -2473,7 +2473,7 @@ class i8088:
     def Op_LODSW(self, opcode: int) -> int:  # 0xad
         if self.PrefixMustRun():
             # LODSW
-            self._state.SetAX(self.ReadMemWord(self._state._segment_override if _state.segment_override_set else self._state._ds, self._state._si))
+            self._state.SetAX(self.ReadMemWord(self._state._segment_override if self._state._segment_override_set else self._state._ds, self._state._si))
             self._state._si += -2 if self._state.GetFlagD() else 2
 
             return 5
