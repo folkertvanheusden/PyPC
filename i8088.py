@@ -1159,7 +1159,7 @@ class i8088:
             self.push(self._state._ip)
 
             self._state._ip = v
-            self._state._cs = self.ReadMemWord(seg, addr + 2)
+            self._state._cs = self.ReadMemWord(seg, (addr + 2) & 0xffff)
 
             cycle_count += 37
 
@@ -1666,16 +1666,18 @@ class i8088:
                 ax = self.ToSigned16(self._state.GetAX())
                 resulti = ax * self.ToSigned16(r1)
 
-                dx_ax = resulti & 0xffffffff
                 if negate:
-                    dx_ax = -dx_ax & 0xffffffff
-                self._state.SetAX(dx_ax & 0xffff)
-                self._state.SetDX((dx_ax >> 16) & 0xffff)
+                    resulti = -resulti
+                self._state.SetAX(resulti & 0xffff)
+                self._state.SetDX((resulti >> 16) & 0xffff)
 
-                flag = self.ToSigned16(self._state.GetAX()) != resulti
-                self._state.SetFlagC(flag)
+                self._state.SetFlagP((resulti >> 16) & 0xff)
+                self._state.SetFlagS((resulti & 0x80000000) != 0)
+                flag = resulti < -0x8000 or resulti >= 0x8000
                 self._state.SetFlagO(flag)
-                self._state.SetFlagP(result >> 8)
+                self._state.SetFlagC(flag)
+                self._state.SetFlagZ(resulti == 0)
+                self._state.SetFlagA(False)
 
                 cycle_count += 128
 
@@ -1683,13 +1685,17 @@ class i8088:
                 result = self.ToSigned8(self._state.GetAL()) * self.ToSigned8(r1)
                 if negate:
                     result = -result
-                self._state.SetAX(result & 0xffff)
+                flag = result < -0x80 or result >= 0x80
+                result &= 0xffff
+                self._state.SetAX(result)
 
-                self._state.SetFlagS((self._state.GetAH() & 128) == 128)
-                flag = self.ToSigned8(self._state.GetAL()) != result
+                self._state.SetFlagS((result & 0x8000) != 0)
                 self._state.SetFlagC(flag)
                 self._state.SetFlagO(flag)
-                self._state.SetFlagP(result >> 8)
+                high_byte = result >> 8
+                self._state.SetFlagP(high_byte)
+                self._state.SetFlagZ(high_byte == 0)
+                self._state.SetFlagA(False)
 
                 cycle_count += 80
 
