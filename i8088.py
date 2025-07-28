@@ -2568,14 +2568,15 @@ class i8088:
             self._state._al %= b2
 
             self._state.SetZSPFlags(self._state.GetAL())
+
         else:
             self._state.SetZSPFlags(0)
 
-            self._state.SetFlagO(False)
-            self._state.SetFlagA(False)
-            self._state.SetFlagC(False)
-
             self.InvokeInterrupt(self._state._ip, 0x00, False)
+
+        self._state.SetFlagO(False)
+        self._state.SetFlagA(False)
+        self._state.SetFlagC(False)
 
         return 83
 
