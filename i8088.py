@@ -1172,7 +1172,7 @@ class i8088:
             self._state._ip = self.ReadMemWord(seg, addr)
             cycle_count += 15
 
-        elif function == 6:
+        elif function == 6 or function == 7:
             # PUSH rmw
             if reg == 4 and mod == 3 and word == True:  # PUSH SP
                 v -= 2
