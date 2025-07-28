@@ -1606,7 +1606,7 @@ class i8088:
 
         elif function == 2:
             # NOT
-            put_cycles = self.UpdateRegisterMem(reg1, mod, a_valid, seg, addr, word, ~r1 & 0xffff)
+            put_cycles = self.UpdateRegisterMem(reg1, mod, a_valid, seg, addr, word, ~r1 & (0xffff if word else 0xff))
             cycle_count += put_cycles
         elif function == 3:
             # NEG
