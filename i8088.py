@@ -1183,8 +1183,7 @@ class i8088:
 
             cycle_count += 16
 
-        if not word:
-            v &= 0xff
+        v &= 0xffff if word else 0xff
 
         put_cycles = self.UpdateRegisterMem(reg, mod, a_valid, seg, addr, word, v)
 
@@ -1689,7 +1688,7 @@ class i8088:
                     self._state.SetFlagA(False)
                     self.InvokeInterrupt(self._state._ip, 0x00, False)  # divide by zero or divisor too small
                 else:
-                    self._state.SetAX(dx_ax / r1)
+                    self._state.SetAX(dx_ax // r1)
                     self._state.SetDX(dx_ax % r1)
 
             else:
@@ -1700,7 +1699,7 @@ class i8088:
                     self._state.SetFlagA(False)
                     self.InvokeInterrupt(self._state._ip, 0x00, False)  # divide by zero or divisor too small
                 else:
-                    self._state.SetAL(ax / r1)
+                    self._state.SetAL(ax // r1)
                     self._state.SetAH(ax % r1)
 
         elif function == 7:
