@@ -95,6 +95,7 @@ class State8088:
 
     def SetAL(self, v: int):
         assert v >= 0 and v <= 255
+        assert type(v) == int
         self._al = v
 
     def GetAH(self) -> int:
@@ -102,6 +103,7 @@ class State8088:
 
     def SetAH(self, v: int):
         assert v >= 0 and v <= 255
+        assert type(v) == int
         self._ah = v
 
     def GetAX(self) -> int:
@@ -109,6 +111,7 @@ class State8088:
 
     def SetAX(self, v: int):
         assert v >= 0 and v <= 65535
+        assert type(v) == int
         self._ah = v >> 8
         self._al = v & 255
 

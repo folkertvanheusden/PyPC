@@ -1597,11 +1597,11 @@ class i8088:
 
         elif function == 2:
             # NOT
-            put_cycles = self.UpdateRegisterMem(reg1, mod, a_valid, seg, addr, word, ~r1)
+            put_cycles = self.UpdateRegisterMem(reg1, mod, a_valid, seg, addr, word, ~r1 & 0xffff)
             cycle_count += put_cycles
         elif function == 3:
             # NEG
-            result = -r1
+            result = -r1 & 0xffff
 
             self.SetAddSubFlags(word, 0, r1, -r1, True, False)
             self._state.SetFlagC(r1 != 0)
@@ -1621,7 +1621,7 @@ class i8088:
                 dx_ax = resulti & 0xffffffff
                 if negate:
                     dx_ax = -dx_ax
-                self._state.SetAX(dx_ax)
+                self._state.SetAX(dx_ax & 0xffff)
                 self._state.SetDX(dx_ax >> 16)
 
                 flag = self._state.GetDX() != 0
@@ -1653,7 +1653,7 @@ class i8088:
                 dx_ax = resulti
                 if negate:
                     dx_ax = -dx_ax
-                self._state.SetAX(dx_ax)
+                self._state.SetAX(dx_ax & 0xffff)
                 self._state.SetDX(dx_ax >> 16)
 
                 flag = self.ToSigned16(self._state.GetAX()) != resulti
@@ -1901,7 +1901,7 @@ class i8088:
     def Op_IN_AL_DX(self, opcode: int) -> int:  # 0xec
         # IN AL,DX
         val = self._io.In(self._state.GetDX(), False)
-        self._state.SetAL(val)
+        self._state.SetAL(val & 0xff)
 
         return 12
 
@@ -1970,7 +1970,7 @@ class i8088:
         from_ = self.GetPcByte()
 
         val = self._io.In(from_, False)
-        self._state.SetAL(val)
+        self._state.SetAL(val & 0xff)
 
         return 14
 
