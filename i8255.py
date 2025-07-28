@@ -1,12 +1,14 @@
 from typing import override, List, Tuple
 import device
+import keyboard
 
 class i8255(device.Device):
-    def __init__(self):
+    def __init__(self, kb: keyboard.Keyboard):
         self._control = 0
         self._dipswitches_high = False
         self._use_SW1 = False
         self._SW2 = 0
+        self._kb = kb
 
         #if (_system_type == SystemType.XT)
         #    _SW1 = 0b00100000  # 2 floppy-drives, CGA80, 256kB, IPL bit
@@ -53,8 +55,7 @@ class i8255(device.Device):
         if port == 0x0063:  # mode
             return 0x99
 
-        #return _kb.IO_Read(port)
-        return 0
+        return self._kb.IO_Read(port)
 
     def IO_Write(self, port: int, value: int) -> bool:
         if port == 0x0061:  # PB0
@@ -76,7 +77,7 @@ class i8255(device.Device):
         elif port == 0x0063:  # control
             return False
 
-        return False
+        return self._kb.IO_Write(port, value)
 
     def GetAddressList(self) -> list[Tuple[int, int]]:
         return []

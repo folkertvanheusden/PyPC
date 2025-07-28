@@ -4,6 +4,7 @@ import bus
 import i8088
 import i8253
 import i8255
+import keyboard
 import mda
 import rom
 import time
@@ -14,7 +15,9 @@ def GetRegisters(state) -> str:
 
 devices = []
 devices.append(i8253.i8253())
-devices.append(i8255.i8255())
+kb = keyboard.Keyboard()
+devices.append(kb)
+devices.append(i8255.i8255(kb))
 devices.append(mda.MDA())
 devices.append(xtide.XTIDE(('test.img',)));
 

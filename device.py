@@ -58,10 +58,10 @@ class Device(abc.ABC):
         pass
 
     def ScheduleInterrupt(self, cycles_delay: int):
-        next_interrupt.append(cycles_delay)
+        self._next_interrupt.append(cycles_delay)
 
     def CheckScheduledInterrupt(self, cycles: int) -> bool:
-        if self._next_interrupt.len() > 0:
+        if len(self._next_interrupt) > 0:
             self._next_interrupt[0] -= cycles
             if self._next_interrupt[0] <= 0:
                 del self._next_interrupt[0]
