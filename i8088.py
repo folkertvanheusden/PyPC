@@ -2357,8 +2357,11 @@ class i8088:
 
         self._state.SetFlagC(False)
 
+        min_ = 0
+
         if (self._state.GetAL() & 0x0f) > 9 or self._state.GetFlagA() == True:
             self._state.SetAL((self._state.GetAL() - 0x06) & 0xff)
+            min_ += 0x06
             self._state.SetFlagA(True)
         else:
             self._state.SetFlagA(False)
@@ -2367,9 +2370,12 @@ class i8088:
 
         if old_al > upper_nibble_check or old_cf:
             self._state.SetAL((self._state.GetAL() - 0x60) & 0xff)
+            min_ += 0x60
             self._state.SetFlagC(True)
 
         self._state.SetZSPFlags(self._state.GetAL())
+
+        self._state.SetFlagO((((old_al ^ min_) & (old_al ^ self._state.GetAL())) & 0x80) != 0)
 
         return 4
 
