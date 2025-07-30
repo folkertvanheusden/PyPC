@@ -243,7 +243,7 @@ class XTIDE(device.Device):
         self._registers[register] = value
 
         if port == 0x300:  # data register
-            if self._sector_buffer_offset < self._sector_buffer.Length:
+            if self._sector_buffer_offset < len(self._sector_buffer):
                 self._sector_buffer[self._sector_buffer_offset] = value.to_bytes(1, byteorder='big')  # FIXME
                 self._sector_buffer_offset += 1
 
