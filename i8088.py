@@ -2615,6 +2615,10 @@ class i8088:
         # AAM
         b2 = self.GetPcByte()
 
+        self._state.SetFlagO(False)
+        self._state.SetFlagA(False)
+        self._state.SetFlagC(False)
+
         if b2 != 0:
             self._state.SetAH(self._state.GetAL() // b2)
             self._state._al %= b2
@@ -2625,10 +2629,6 @@ class i8088:
             self._state.SetZSPFlags(0)
 
             self.InvokeInterrupt(self._state._ip, 0x00, False)
-
-        self._state.SetFlagO(False)
-        self._state.SetFlagA(False)
-        self._state.SetFlagC(False)
 
         return 83
 
