@@ -2329,8 +2329,11 @@ class i8088:
 
         self._state.SetFlagC(False)
 
+        plus_ = 0
+
         if ((self._state.GetAL() & 0x0f) > 9) or self._state.GetFlagA() == True:
             add_carry = self._state.GetAL() + 0x06 > 255
+            plus_ += 0x06
 
             self._state.SetAL((self._state.GetAL() + 0x06) & 0xff)
             self._state.SetFlagC(old_cf or add_carry)
@@ -2342,11 +2345,14 @@ class i8088:
 
         if old_al > upper_nibble_check or old_cf:
             self._state.SetAL((self._state.GetAL() + 0x60) & 0xff)
+            plus_ += 0x60
             self._state.SetFlagC(True)
         else:
             self._state.SetFlagC(False)
 
         self._state.SetZSPFlags(self._state.GetAL())
+
+        self._state.SetFlagO((((plus_ ^ self._state.GetAL()) & (old_al ^ self._state.GetAL())) & 0x80) != 0)
 
         return 4
 
