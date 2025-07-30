@@ -66,6 +66,8 @@ class MDA(device.Device):
 
         if character == 0:
             character = 32
+        if character < 32 or character > 126:
+            character = ord('_')
         out += f'{character:c}'
 
         return out
