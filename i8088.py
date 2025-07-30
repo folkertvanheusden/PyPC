@@ -2386,8 +2386,11 @@ class i8088:
         return 4
 
     def Op_AAA(self, opcode: int) -> int:  # 0x37
+        plus = 0
+        old_al = self._state.GetAL()
         if (self._state.GetAL() & 0x0f) > 9 or self._state.GetFlagA():
             self._state.SetAL((self._state.GetAL() + 6) & 0xff)
+            plus = 6
             self._state.SetAH((self._state.GetAH() + 1) & 0xff)
 
             self._state.SetFlagA(True)
@@ -2395,6 +2398,12 @@ class i8088:
         else:
             self._state.SetFlagA(False)
             self._state.SetFlagC(False)
+
+        new_al = self._state.GetAL()
+        self._state.SetFlagP(new_al)
+        self._state.SetFlagS((new_al & 0x80) != 0)
+        self._state.SetFlagZ(new_al == 0)
+        self._state.SetFlagO(((old_al ^ new_al) & (plus ^ new_al) & 0x80) != 0)
 
         self._state._al &= 0x0f
 
