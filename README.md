@@ -9,6 +9,11 @@ You need to have 'GLABIOS.ROM' in the directory from which you start 'main.py'. 
 
 Note that this is a manual translation of https://github.com/folkertvanheusden/Dotxt
 
+If you want a quicker version, run it from 'pypy'. For that you may need to invoke this first on the source code of PyPC:
+
+    sed -i 's/import override,/import /g' *py
+    sed -i 's/@override//g' *py
+
 
 Folkert van Heusden
 
