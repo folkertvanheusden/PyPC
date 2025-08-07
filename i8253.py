@@ -180,30 +180,39 @@ class i8253(device.Device):
     @override
     def Tick(self, ticks: int, ignored):
         self._clock += ticks
+        if self._clock < 4:
+            return False
 
         interrupt = False
 
-        while self._clock >= 4:
-            for i in range(3):
-                if self._timers[i].is_running == False:
-                    continue
+        n_to_subtract = self._clock // 4
 
-                self._timers[i].counter_cur -= 1
-                self._timers[i].counter_cur &= 0xffff
+        for i in range(3):
+            if self._timers[i].is_running == False:
+                continue
 
-                if self._timers[i].counter_cur == 0:
-                    # timer 1 is RAM refresh counter
-                    if i == 1:
+            self._timers[i].counter_cur -= n_to_subtract
+
+            n_interrupts = 0
+            if self._timers[i].counter_cur < 0:
+                n_interrupts = -self._timers[i].counter_cur // 0x10000
+
+            if n_interrupts > 0:
+                # timer 1 is RAM refresh counter
+                if i == 1:
+                    for k in range(n_interrupts):
                         self._i8237.TickChannel0()
 
-                    if self._timers[i].mode != 1:
-                        self._timers[i].counter_cur = self._timers[i].counter_ini
+                if self._timers[i].mode != 1:
+                    self._timers[i].counter_cur = self._timers[i].counter_ini - (-self._timers[i].counter_cur % (0x10000 if self._timers[i].counter_ini == 0 else self._timers[i].counter_ini))
+                else:
+                    self._timers[i].counter_cur &= 0xffff
 
-                    if i == 0:
-                        self._timers[i].is_pending = True
-                        interrupt = True
+                if i == 0:
+                    self._timers[i].is_pending = True
+                    interrupt = True
 
-            self._clock -= 4
+        self._clock -= n_to_subtract * 4
 
         if interrupt:
             self._pic.RequestInterruptPIC(self._irq_nr)  # Timers are on IRQ0
