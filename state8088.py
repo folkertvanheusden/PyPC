@@ -235,15 +235,10 @@ class State8088:
         return self.GetFlag(0)
 
     def SetFlagP(self, v: int):
-        count = 0
-
-        v &= 0xff
-
-        while v != 0:
-            count += 1
-            v &= v - 1
-
-        self.SetFlag(2, (count & 1) == 0)
+        y = v ^ (v >> 1)
+        y = y ^ (y >> 2)
+        y = y ^ (y >> 4)
+        self.SetFlag(2, (y & 1) == 0)
 
     def GetFlagP(self) -> bool:
         return self.GetFlag(2)
