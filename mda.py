@@ -94,5 +94,4 @@ class MDA(device.Device):
 
     @override
     def Tick(self, cycles: int, clock: int) -> bool:
-        self._clock = clock
         return super().Tick(cycles, clock)
