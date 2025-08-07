@@ -51,7 +51,7 @@ class MDA(device.Device):
         self._ram[use_offset] = value
         self._last_update += 1
 
-        print(self.UpdateConsole(use_offset), end='', flush=True)
+        #print(self.UpdateConsole(use_offset), end='', flush=True)
 
     def EmulateTextDisplay(self, x: int, y: int, character: int, attributes: int):
         out = f'\033[{y + 1};{x + 1}H'   # position cursor
@@ -66,8 +66,6 @@ class MDA(device.Device):
 
         if character == 0:
             character = 32
-        if character < 32 or character > 126:
-            character = ord('_')
         out += f'{character:c}'
 
         return out
