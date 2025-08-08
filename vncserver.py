@@ -1,3 +1,4 @@
+import select
 import socket
 import threading
 
@@ -196,6 +197,12 @@ class VNCServer:
 
     def VNCWaitForEvent(self, session):
         try:
+            poller = select.poll()
+            poller.register(session.stream, select.POLLIN)
+            events = poller.poll(1 / 15)  # 15 fps
+            if len(events) == 0:
+                return True
+
             type_ = int.from_bytes(session.stream.recv(1))
 
             if type_ == 0:  # SetPixelFormat
