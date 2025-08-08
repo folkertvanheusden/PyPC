@@ -212,7 +212,7 @@ class State8088:
     def SetZSPFlags(self, v: int):
         assert v >= 0 and v <= 65535
         self.SetFlagZ(v == 0)
-        self.SetFlagS((v & 0x80) == 0x80)
+        self.SetFlagS(bool(v & 0x80))
         self.SetFlagP(v)
 
     def ClearFlagBit(self, bit: int):
@@ -226,7 +226,7 @@ class State8088:
         self._flags |= state << bit
 
     def GetFlag(self, bit: int) -> bool:
-        return (self._flags & (1 << bit)) != 0
+        return bool(self._flags & (1 << bit))
 
     def SetFlagC(self, state: bool):
         self.SetFlag(0, state)
