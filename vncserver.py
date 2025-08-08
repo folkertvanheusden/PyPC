@@ -23,7 +23,7 @@ class VNCServer:
         self._compatible_width = 720
         self._compatible_height = 400
 
-        _thread = threading.Thread(target=self.VNCThread, args=(port, ))
+        _thread = threading.Thread(target=self.VNCServerThread, args=(port, ))
         _thread.name = "vnc-server-thread"
         _thread.start()
 
@@ -308,11 +308,34 @@ class VNCServer:
                 session.stream.send(bytes(update))
                 session.stream.send(bytes(buffer))
 
-    def VNCThread(self, port):
+    def VNCClientThread(self, session):
+        try:
+            self.VNCSendVersion(session.stream)
+            self.VNCSecurityHandshake(session.stream)
+            self.VNCClientServerInit(session.stream)
+
+            version = 0
+            first = True
+            while True:
+                new_version = self._display.GetClock()
+                if new_version != version or first:
+                    version = new_version
+                    self.VNCSendFrame(session, first)
+                    first = False
+
+                if self.VNCWaitForEvent(session) == False:
+                    break
+        except Exception as e:
+            print(f'VNCClientThread exception: {e}, line number: {e.__traceback__.tb_lineno}')
+
+        session.stream.close()
+
+    def VNCServerThread(self, port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind(('0.0.0.0', port))
-        s.listen(1)
+        s.listen(128)
+        print(f'Listening on port {port} for a VNC session')
 
         while True:
             client, c_addr = s.accept()
@@ -322,23 +345,7 @@ class VNCServer:
             session.stream_lock = threading.Lock()
             session.stream = client
 
-            try:
-                self.VNCSendVersion(session.stream)
-                self.VNCSecurityHandshake(session.stream)
-                self.VNCClientServerInit(session.stream)
-
-                version = 0
-                first = True
-                while True:
-                    new_version = self._display.GetClock()
-                    if new_version != version or first:
-                        version = new_version
-                        self.VNCSendFrame(session, first)
-                        first = False
-
-                    if self.VNCWaitForEvent(session) == False:
-                        break
-            except Exception as e:
-                print(f'VNCThread exception: {e}, line number: {e.__traceback__.tb_lineno}')
-
-            client.close()
+            t = threading.Thread(target=self.VNCClientThread, args=(session,))
+            t.daemon = True
+            t.name = 'VNC client'
+            t.start()
