@@ -232,7 +232,7 @@ class XTIDE(device.Device):
         return rc
 
     def StoreSectorBuffer(self):
-        fh = open(self._disk_filenames[_target_drive], 'a+b')
+        fh = open(self._disk_filenames[self._target_drive], 'a+b')
         fh.seek(self._target_lba * 512)
         fh.write(self._sector_buffer)
         fh.close()
