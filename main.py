@@ -9,6 +9,7 @@ import mda
 import rom
 import telnet
 import time
+import vncserver
 import xtide
 
 def GetRegisters(state) -> str:
@@ -45,6 +46,8 @@ state.SetIP(0xfff0)
 
 t = telnet.Telnet(2300, kb, scr)
 print('Use: "telnet localhost 2300" to interact with the emulated system')
+
+v = vncserver.VNCServer(scr, kb, 5902, True)
 
 p_time = time.time()
 p_cycles = 0
