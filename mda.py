@@ -12,22 +12,22 @@ class MDA(graphics.Graphics):
         self._font = font.Font().get_font()
 
         self._palette = [
-                (   0,   0,   0, 255 ),
-                (   0,   0, 127, 255 ),
-                (   0, 127,   0, 255 ),
-                (   0, 127, 127, 255 ),
-                ( 127,   0,   0, 255 ),
-                ( 127,   0, 127, 255 ),
-                ( 127, 127,   0, 255 ),
-                ( 127, 127, 127, 255 ),
-                ( 127, 127, 127, 255 ),
-                (   0,   0, 255, 255 ),
-                (   0, 255,   0, 255 ),
-                (   0, 255, 255, 255 ),
-                ( 255,   0,   0, 255 ),
-                ( 255,   0, 255, 255 ),
-                ( 255, 255,   0, 255 ),
-                ( 255, 255, 255, 255 )
+                (   0,   0,   0 ),
+                (   0,   0, 127 ),
+                (   0, 127,   0 ),
+                (   0, 127, 127 ),
+                ( 127,   0,   0 ),
+                ( 127,   0, 127 ),
+                ( 127, 127,   0 ),
+                ( 127, 127, 127 ),
+                ( 127, 127, 127 ),
+                (   0,   0, 255 ),
+                (   0, 255,   0 ),
+                (   0, 255, 255 ),
+                ( 255,   0,   0 ),
+                ( 255,   0, 255 ),
+                ( 255, 255,   0 ),
+                ( 255, 255, 255 )
                 ]
 
     @override
@@ -77,7 +77,7 @@ class MDA(graphics.Graphics):
             width = 80
             gf_width = 640
             gf_height = 401
-            pixels = [ 0 ] * (gf_width * gf_height * 4)
+            pixels = [ 0 ] * (gf_width * gf_height * 3)
             mem_pointer = 0
             for y in range(25):
                 for x in range(80):
@@ -93,18 +93,26 @@ class MDA(graphics.Graphics):
                     for py in range(8):
                         bit_mask = 128
                         line = self._font[2][char_offset + py]
-                        y_pixel_offset = (y * 8 + py) * 640 * 4 * 2
+                        y_pixel_offset = (y * 8 + py) * 640 * 3 * 2
                         for px in range(8):
                             is_fg = bool(line & bit_mask)
-                            pixel_offset = y_pixel_offset + (x * 8 + px) * 4
+                            pixel_offset = y_pixel_offset + (x * 8 + px) * 3
                             if is_fg:
-                                pixels[pixel_offset:pixel_offset + 4] = self._palette[fg][0:4]
-                                pixel_offset += 640 * 4
-                                pixels[pixel_offset:pixel_offset + 4] = self._palette[fg][0:4]
+                                pixels[pixel_offset + 0] = self._palette[fg][0]
+                                pixels[pixel_offset + 1] = self._palette[fg][1]
+                                pixels[pixel_offset + 2] = self._palette[fg][2]
+                                pixel_offset += 640 * 3
+                                pixels[pixel_offset + 0] = self._palette[fg][0]
+                                pixels[pixel_offset + 1] = self._palette[fg][1]
+                                pixels[pixel_offset + 2] = self._palette[fg][2]
                             else:
-                                pixels[pixel_offset:pixel_offset + 4] = self._palette[bg][0:4]
-                                pixel_offset += 640 * 4
-                                pixels[pixel_offset:pixel_offset + 4] = self._palette[bg][0:4]
+                                pixels[pixel_offset + 0] = self._palette[bg][0]
+                                pixels[pixel_offset + 1] = self._palette[bg][1]
+                                pixels[pixel_offset + 2] = self._palette[bg][2]
+                                pixel_offset += 640 * 3
+                                pixels[pixel_offset + 0] = self._palette[bg][0]
+                                pixels[pixel_offset + 1] = self._palette[bg][1]
+                                pixels[pixel_offset + 2] = self._palette[bg][2]
 
                             bit_mask >>= 1
 
