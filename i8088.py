@@ -21,7 +21,7 @@ class i8088:
         self._io = pc_io.IO(b, devices, not run_IO)
         self._terminate_on_off_the_rails = run_IO
 
-        self._ops = dict()
+        self._ops = [ None ] * 256
         self._ops[0x00] = self.Op_ADD_SUB_ADC_SBC
         self._ops[0x01] = self.Op_ADD_SUB_ADC_SBC
         self._ops[0x02] = self.Op_ADD_SUB_ADC_SBC
@@ -763,7 +763,7 @@ class i8088:
             self._state._crash_counter = 0
 
         # main instruction handling
-        if opcode in self._ops:
+        if self._ops[opcode] != None:
             cycle_count += self._ops[opcode](opcode)
         # special cases
         elif opcode == 0x9d:
