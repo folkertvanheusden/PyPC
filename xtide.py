@@ -106,14 +106,13 @@ class XTIDE(device.Device):
         self._sector_buffer = bytearray(sector_count * 512)
         self._sector_buffer_offset = 0
 
+        fh = open(self._disk_filenames[drive], 'rb')
         for nr in range(sector_count):
             lba = (cylinder * self._head_count + head) * self._sectors_per_track + sector_number - 1
             offset = lba * 512
 
-            fh = open(self._disk_filenames[drive], 'rb')
             fh.seek(offset)
             self._sector_buffer[512 * nr: 512 * nr + 512] = fh.read(512)
-            fh.close()
 
             sector_number += 1
             if sector_number > self._sectors_per_track:  # > because starting at 1!
@@ -128,6 +127,7 @@ class XTIDE(device.Device):
             self._registers[5] = cylinder >> 8
             self._registers[6] &= 0xf0
             self._registers[6] |= head
+        fh.close()
 
         self.SetDRDY()
         self.SetDRQ()
