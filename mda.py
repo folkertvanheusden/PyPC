@@ -93,9 +93,10 @@ class MDA(graphics.Graphics):
                     for py in range(8):
                         bit_mask = 128
                         line = self._font[2][char_offset + py]
+                        y_pixel_offset = (y * 8 + py) * 640 * 3 * 2
                         for px in range(8):
                             is_fg = bool(line & bit_mask)
-                            pixel_offset = (y * 8 + py) * 640 * 3 * 2 + (x * 8 + px) * 3
+                            pixel_offset = y_pixel_offset + (x * 8 + px) * 3
                             if is_fg:
                                 pixels[pixel_offset + 0] = self._palette[fg][0]
                                 pixels[pixel_offset + 1] = self._palette[fg][1]
