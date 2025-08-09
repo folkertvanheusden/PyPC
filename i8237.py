@@ -80,15 +80,14 @@ class i8237(device.Device):
         mappings[0x83] = self
         mappings[0x87] = self
 
-    def TickChannel0(self):
+    def TickChannel0(self, n):
         # RAM refresh
-        self._channel_address_register[0].SetValue((self._channel_address_register[0].GetValue() + 1) & 0xffff)
+        self._channel_address_register[0].SetValue((self._channel_address_register[0].GetValue() + n) & 0xffff)
 
-        count = self._channel_word_count[0].GetValue()
-        count -= 1
-        self._channel_word_count[0].SetValue(count & 0xffff)
-        if count == -1:
+        new_count = self._channel_word_count[0].GetValue() - n
+        if new_count < 0:
             self._reached_tc[0] = True
+        self._channel_word_count[0].SetValue(new_count & 0xffff)
 
     @override
     def IO_Read(self, addr: int) -> int:
