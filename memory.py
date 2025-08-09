@@ -34,7 +34,7 @@ class Memory(Device):
 
     @override
     def IO_Write(self, port: int, value: int) -> bool:
-        return false
+        return False
 
     @override
     def RegisterDevice(self, mappings: dict):
