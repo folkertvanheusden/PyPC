@@ -193,9 +193,8 @@ class i8253(device.Device):
 
             self._timers[i].counter_cur -= n_to_subtract
 
-            n_interrupts = 0
-            if self._timers[i].counter_cur < 0:
-                n_interrupts = -self._timers[i].counter_cur // 0x10000
+            divider = 0x10000 if self._timers[i].counter_ini == 0 else self._timers[i].counter_ini
+            n_interrupts = -self._timers[i].counter_cur // divider
 
             if n_interrupts > 0:
                 # timer 1 is RAM refresh counter
@@ -204,7 +203,7 @@ class i8253(device.Device):
                         self._i8237.TickChannel0()
 
                 if self._timers[i].mode != 1:
-                    self._timers[i].counter_cur = self._timers[i].counter_ini - (-self._timers[i].counter_cur % (0x10000 if self._timers[i].counter_ini == 0 else self._timers[i].counter_ini))
+                    self._timers[i].counter_cur = self._timers[i].counter_ini - (-self._timers[i].counter_cur % divider)
                 else:
                     self._timers[i].counter_cur &= 0xffff
 
