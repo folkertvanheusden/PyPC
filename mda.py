@@ -77,7 +77,7 @@ class MDA(graphics.Graphics):
             width = 80
             gf_width = 640
             gf_height = 401
-            pixels = [ 0 ] * (gf_width * gf_height * 3)
+            pixels = [ 0 ] * (gf_width * gf_height * 4)
             mem_pointer = 0
             for y in range(25):
                 for x in range(80):
@@ -93,26 +93,30 @@ class MDA(graphics.Graphics):
                     for py in range(8):
                         bit_mask = 128
                         line = self._font[2][char_offset + py]
-                        y_pixel_offset = (y * 8 + py) * 640 * 3 * 2
+                        y_pixel_offset = (y * 8 + py) * 640 * 4 * 2
                         for px in range(8):
                             is_fg = bool(line & bit_mask)
-                            pixel_offset = y_pixel_offset + (x * 8 + px) * 3
+                            pixel_offset = y_pixel_offset + (x * 8 + px) * 4
                             if is_fg:
                                 pixels[pixel_offset + 0] = self._palette[fg][0]
                                 pixels[pixel_offset + 1] = self._palette[fg][1]
                                 pixels[pixel_offset + 2] = self._palette[fg][2]
-                                pixel_offset += 640 * 3
+                                pixels[pixel_offset + 3] = 255
+                                pixel_offset += 640 * 4
                                 pixels[pixel_offset + 0] = self._palette[fg][0]
                                 pixels[pixel_offset + 1] = self._palette[fg][1]
                                 pixels[pixel_offset + 2] = self._palette[fg][2]
+                                pixels[pixel_offset + 3] = 255
                             else:
                                 pixels[pixel_offset + 0] = self._palette[bg][0]
                                 pixels[pixel_offset + 1] = self._palette[bg][1]
                                 pixels[pixel_offset + 2] = self._palette[bg][2]
-                                pixel_offset += 640 * 3
+                                pixels[pixel_offset + 3] = 255
+                                pixel_offset += 640 * 4
                                 pixels[pixel_offset + 0] = self._palette[bg][0]
                                 pixels[pixel_offset + 1] = self._palette[bg][1]
                                 pixels[pixel_offset + 2] = self._palette[bg][2]
+                                pixels[pixel_offset + 3] = 255
 
                             bit_mask >>= 1
 

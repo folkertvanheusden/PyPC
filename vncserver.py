@@ -284,30 +284,16 @@ class VNCServer:
             use_width = min(width, frame[0])
             use_height = min(height, frame[1])
             for y in range(use_height):
-                in_offset = y * frame[0] * 3
+                in_offset = y * frame[0] * 4
                 out_offset = y * width * 4
-                for x in range(use_width):
-                    i_offset = in_offset + x * 3
-                    o_offset = out_offset + x * 4
-                    buffer[o_offset + 3] = 255
-                    buffer[o_offset + 2] = frame[2][i_offset + 0]
-                    buffer[o_offset + 1] = frame[2][i_offset + 1]
-                    buffer[o_offset + 0] = frame[2][i_offset + 2]
+                buffer[out_offset:out_offset + use_width * 4] = frame[2][in_offset:in_offset + use_width * 4]
             with session.stream_lock:
                 session.stream.send(bytes(update))
                 session.stream.send(bytes(buffer))
         else:
-            buffer = [ 0 ] * (width * height * 4)
-            for i in range(frame[0] * frame[1]):
-                o_offset = i * 4
-                i_offset = i * 3
-                buffer[o_offset + 3] = 255
-                buffer[o_offset + 2] = frame[2][i_offset + 0]
-                buffer[o_offset + 1] = frame[2][i_offset + 1]
-                buffer[o_offset + 0] = frame[2][i_offset + 2]
             with session.stream_lock:
                 session.stream.send(bytes(update))
-                session.stream.send(bytes(buffer))
+                session.stream.send(bytes(frame[2]))
 
     def VNCClientThread(self, session):
         try:
