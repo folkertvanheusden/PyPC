@@ -5,7 +5,9 @@ You need to have 'GLABIOS.ROM' in the directory from which you start 'main.py'. 
 When it is running, you can also connect a VNC client to it: you see it then use the original font.
 
 
-![main screen](images/pypc001.png)
+![main screen via telnet](images/pypc001.png)
+
+![main screen via VNC](images/pypc002.png)
 
 
 Note that this is a manual translation of https://github.com/folkertvanheusden/Dotxt
