@@ -5,8 +5,10 @@ You need to have 'GLABIOS.ROM' in the directory from which you start 'main.py'. 
 When it is running, you can also connect a VNC client to it: you see it then use the original font.
 
 
+### via telnet
 ![main screen via telnet](images/pypc001.png)
 
+### via vnc
 ![main screen via VNC](images/pypc002.png)
 
 
