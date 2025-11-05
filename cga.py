@@ -120,7 +120,7 @@ class CGA(mda.MDA):
 
         return False
 
-    def GetPixelColor(line: int, color_index: int, rgb: List):  # TODO
+    def GetPixelColor(self, line: int, color_index: int, rgb: List):  # TODO
         if self._palette_index[line] >= 2:
             brightness = 255 if self._palette_index[line] == 3 else 200
             if color_index == 1:
@@ -148,64 +148,72 @@ class CGA(mda.MDA):
                 rgb[0] = rgb[1] = rgb[2] = 0
 
     def RenderG320FrameGraphical(self):
-        rgb_pixels = [ 0 ] * 320 * 200 * 3
-        rgb = [ 0 ] * 3
-        for addr in range(self._display_address, min(self._display_address + 16000, 16384)):
-            if addr - _display_address >= 8192:
-                addr_without_base = addr - 8192 - _display_address
-                y = addr_without_base // 80 * 2 + 1
-                x = (addr_without_base % 80) * 4
-            else:
-                addr_without_base = addr - _display_address
-                y = addr_without_base // 80 * 2
-                x = (addr_without_base % 80) * 4
+        try:
+            rgb_pixels = [ 0 ] * 640 * 400 * 3
+            rgb = [ 0 ] * 3
+            for addr in range(self._display_address, min(self._display_address + 16000, 16384)):
+                if addr - self._display_address >= 8192:
+                    addr_without_base = addr - 8192 - self._display_address
+                    y = addr_without_base // 80 * 2 + 1
+                    x = (addr_without_base % 80) * 4
+                else:
+                    addr_without_base = addr - self._display_address
+                    y = addr_without_base // 80 * 2
+                    x = (addr_without_base % 80) * 4
 
-            if y >= 200:
-                continue
+                if y >= 200:
+                    continue
 
-            b = self._ram[addr]
+                b = self._ram[addr]
 
-            y_offset = y * 320 * 3 * 4
-            for x_i in range(4):
-                color_index = (b >> (x_i * 2)) & 3
-                x_offset = (x + 3 - x_i) * 3 * 2
-                offset = y_offset + x_offset
-                self.GetPixelColor(y if self._palette_per_scanline else 0, color_index, rgb)
-                rgb_pixels[offset + 0] = rgb_pixels[offset + 3] = rgb[0]
-                rgb_pixels[offset + 1] = rgb_pixels[offset + 4] = rgb[1]
-                rgb_pixels[offset + 2] = rgb_pixels[offset + 5] = rgb[2]
-                offset += 320 * 3 * 2
-                rgb_pixels[offset + 0] = rgb_pixels[offset + 3] = rgb[0]
-                rgb_pixels[offset + 1] = rgb_pixels[offset + 4] = rgb[1]
-                rgb_pixels[offset + 2] = rgb_pixels[offset + 5] = rgb[2]
+                y_offset = y * 320 * 3 * 4
+                for x_i in range(4):
+                    color_index = (b >> (x_i * 2)) & 3
+                    x_offset = (x + 3 - x_i) * 3 * 2
+                    offset = y_offset + x_offset
+                    self.GetPixelColor(y if self._palette_per_scanline else 0, color_index, rgb)
+                    rgb_pixels[offset + 0] = rgb_pixels[offset + 3] = rgb[0]
+                    rgb_pixels[offset + 1] = rgb_pixels[offset + 4] = rgb[1]
+                    rgb_pixels[offset + 2] = rgb_pixels[offset + 5] = rgb[2]
+                    offset += 320 * 3 * 2
+                    rgb_pixels[offset + 0] = rgb_pixels[offset + 3] = rgb[0]
+                    rgb_pixels[offset + 1] = rgb_pixels[offset + 4] = rgb[1]
+                    rgb_pixels[offset + 2] = rgb_pixels[offset + 5] = rgb[2]
 
-        return 320, 200, rgb_pixels
+            return 640, 400, rgb_pixels
+
+        except Exception as e:
+            print(f'CGA::RenderG320FrameGraphical exception: {e}, line number: {e.__traceback__.tb_lineno}')
 
     def RenderG640FrameGraphical(self):
-        rgb_pixels = [ 0 ] * 640 * 200 * 3
-        for addr in range(self._display_address, min(self._display_address + 16000, 16384)):
-            if addr - _display_address >= 8192:
-                addr_without_base = addr - 8192 - _display_address
-                y = addr_without_base / 80 * 2 + 1
-                x = (addr_without_base % 80) * 8
-            else:
-                addr_without_base = addr - _display_address
-                y = addr_without_base / 80 * 2
-                x = (addr_without_base % 80) * 8
+        try:
+            rgb_pixels = [ 0 ] * 640 * 400 * 3
+            for addr in range(self._display_address, min(self._display_address + 16000, 16384)):
+                if addr - self._display_address >= 8192:
+                    addr_without_base = addr - 8192 - self._display_address
+                    y = addr_without_base / 80 * 2 + 1
+                    x = (addr_without_base % 80) * 8
+                else:
+                    addr_without_base = addr - self._display_address
+                    y = addr_without_base / 80 * 2
+                    x = (addr_without_base % 80) * 8
 
-            if y >= 200:
-                continue
+                if y >= 200:
+                    continue
 
-            b = _ram[addr]
-            for x_i in range(8):
-                value = 255 if b & 1 else 0
-                offset1 = (y * 640 * 2 + x + 7 - x_i) * 3
-                rgb_pixels[offset1 + 0] = rgb_pixels[offset1 + 1] = rgb_pixels[offset1 + 2] = value
-                offset2 = offset1 + 640 * 3
-                rgb_pixels[offset2 + 0] = rgb_pixels[offset2 + 1] = rgb_pixels[offset2 + 2] = value
-                b >>= 1
+                b = _ram[addr]
+                for x_i in range(8):
+                    value = 255 if b & 1 else 0
+                    offset1 = (y * 640 * 2 + x + 7 - x_i) * 3
+                    rgb_pixels[offset1 + 0] = rgb_pixels[offset1 + 1] = rgb_pixels[offset1 + 2] = value
+                    offset2 = offset1 + 640 * 3
+                    rgb_pixels[offset2 + 0] = rgb_pixels[offset2 + 1] = rgb_pixels[offset2 + 2] = value
+                    b >>= 1
 
-        return 640, 200, rgb_pixels
+                return 640, 400, rgb_pixels
+
+        except Exception as e:
+            print(f'CGA::RenderG640FrameGraphical exception: {e}, line number: {e.__traceback__.tb_lineno}')
 
     def GetFrame(self):
         try:
