@@ -11,6 +11,9 @@ When it is running, you can also connect a VNC client to it: you see it then use
 ### via vnc
 ![main screen via VNC](images/pypc002.png)
 
+### spacequest 3 via vnc
+![main screen via VNC](images/pypc003.png)
+
 
 Note that this is a manual translation of https://github.com/folkertvanheusden/Dotxt
 
