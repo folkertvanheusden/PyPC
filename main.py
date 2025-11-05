@@ -1,6 +1,7 @@
 #! /usr/bin/python3
 
 import bus
+import cga
 import i8088
 import i8253
 import i8255
@@ -30,7 +31,8 @@ devices.append(i8253.i8253())
 kb = keyboard.Keyboard()
 devices.append(kb)
 devices.append(i8255.i8255(kb))
-scr = mda.MDA()
+#scr = mda.MDA()
+scr = cga.CGA(False)
 devices.append(scr)
 devices.append(xtide.XTIDE(('harddisk.img',)));
 

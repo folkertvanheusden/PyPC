@@ -10,6 +10,8 @@ class MDA(graphics.Graphics):
         self._hsync: bool = False
         self._last_update: int = 0
         self._font = font.Font().get_font()
+        self._display_address = 0
+        self._ram_offset = 0xb0000
 
         self._palette = [
                 (   0,   0,   0 ),
@@ -48,10 +50,10 @@ class MDA(graphics.Graphics):
 
     @override
     def GetAddressList(self) -> list[Tuple[int, int]]:
-        return [(0xb0000, 0x8000)]
+        return [(self._ram_offset, 0x8000)]
 
     @override
-    def IO_Write(self, port: int, value:  int) -> bool:
+    def IO_Write(self, port: int, value: int) -> bool:
         return False
 
     @override
@@ -66,22 +68,19 @@ class MDA(graphics.Graphics):
 
     @override
     def WriteByte(self, offset: int, value: int):
-        use_offset = (offset - 0xb0000) & 0x3fff
+        use_offset = (offset - self._ram_offset) & 0x3fff
         self._ram[use_offset] = value
-        self._last_update += 1
+        # self._last_update += 1
 
-        #print(self.UpdateConsole(use_offset), end='', flush=True)
-
-    def GetFrame(self):
+    def RenderTextFrameGraphical(self):
         try:
             width = 80
             gf_width = 640
             gf_height = 401
             pixels = [ 0 ] * (gf_width * gf_height * 3)
-            mem_pointer = 0
             for y in range(25):
                 for x in range(80):
-                    mem_pointer = y * 80 * 2 + x * 2
+                    mem_pointer = self._display_address + y * 80 * 2 + x * 2
                     char_base_offset = mem_pointer & 16382
                     character = self._ram[char_base_offset + 0]
                     attributes = self._ram[char_base_offset + 1]
@@ -119,8 +118,10 @@ class MDA(graphics.Graphics):
             return gf_width, gf_height, pixels
 
         except Exception as e:
-            print(f'MDA::GetFrame exception: {e}, line number: {e.__traceback__.tb_lineno}')
+            print(f'RenderTextFrameGraphical exception: {e}, line number: {e.__traceback__.tb_lineno}')
 
+    def GetFrame(self):
+        return self.RenderTextFrameGraphical()
 
     def EmulateTextDisplay(self, x: int, y: int, character: int, attributes: int):
         out = f'\033[{y + 1};{x + 1}H'   # position cursor
@@ -155,7 +156,7 @@ class MDA(graphics.Graphics):
 
     @override
     def ReadByte(self, offset: int) -> int:
-        return self._ram[(offset - 0xb0000) & 0x3fff]
+        return self._ram[(offset - self._ram_offset) & 0x3fff]
 
     @override
     def Ticks(self) -> bool:

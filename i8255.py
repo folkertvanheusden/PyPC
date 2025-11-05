@@ -11,14 +11,14 @@ class i8255(device.Device):
         self._kb = kb
 
         #if (_system_type == SystemType.XT)
-        #    _SW1 = 0b00100000  # 2 floppy-drives, CGA80, 256kB, IPL bit
+        self._SW1 = 0b00100000  # 2 floppy-drives, CGA80, 256kB, IPL bit
         #else
         #{
         #    _SW1 = (2 << 4) /*(cga80)*/ | (3 << 2 /* memory banks*/)
         #    _SW2 = 0b01101101
         #}
         # XT
-        self._SW1 = 0b00110000  # 2 floppy-drives, MDA, 256kB, IPL bit
+        #self._SW1 = 0b00110000  # 2 floppy-drives, MDA, 256kB, IPL bit
 
 #        if (n_floppies > 0)
 #            _SW1 |= (byte)(1 | ((n_floppies - 1) << 6))
