@@ -193,17 +193,17 @@ class CGA(mda.MDA):
             for addr in range(self._display_address, min(self._display_address + 16000, 16384)):
                 if addr - self._display_address >= 8192:
                     addr_without_base = addr - 8192 - self._display_address
-                    y = addr_without_base / 80 * 2 + 1
+                    y = addr_without_base // 80 * 2 + 1
                     x = (addr_without_base % 80) * 8
                 else:
                     addr_without_base = addr - self._display_address
-                    y = addr_without_base / 80 * 2
+                    y = addr_without_base // 80 * 2
                     x = (addr_without_base % 80) * 8
 
                 if y >= 200:
                     continue
 
-                b = _ram[addr]
+                b = self._ram[addr]
                 for x_i in range(8):
                     value = 255 if b & 1 else 0
                     offset1 = (y * 640 * 2 + x + 7 - x_i) * 4
