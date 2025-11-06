@@ -149,7 +149,7 @@ class CGA(mda.MDA):
 
     def RenderG320FrameGraphical(self):
         try:
-            rgb_pixels = [ 0 ] * 640 * 400 * 3
+            rgb_pixels = [ 0 ] * 640 * 400 * 4
             rgb = [ 0 ] * 3
             for addr in range(self._display_address, min(self._display_address + 16000, 16384)):
                 if addr - self._display_address >= 8192:
@@ -172,13 +172,15 @@ class CGA(mda.MDA):
                     x_offset = (x + 3 - x_i) * 3 * 2
                     offset = y_offset + x_offset
                     self.GetPixelColor(y if self._palette_per_scanline else 0, color_index, rgb)
-                    rgb_pixels[offset + 0] = rgb_pixels[offset + 3] = rgb[0]
-                    rgb_pixels[offset + 1] = rgb_pixels[offset + 4] = rgb[1]
-                    rgb_pixels[offset + 2] = rgb_pixels[offset + 5] = rgb[2]
+                    rgb_pixels[offset + 0] = rgb_pixels[offset + 4] = rgb[2]
+                    rgb_pixels[offset + 1] = rgb_pixels[offset + 5] = rgb[1]
+                    rgb_pixels[offset + 2] = rgb_pixels[offset + 6] = rgb[0]
+                    rgb_pixels[offset + 3] = rgb_pixels[offset + 7] = rgb[255]
                     offset += 320 * 3 * 2
-                    rgb_pixels[offset + 0] = rgb_pixels[offset + 3] = rgb[0]
-                    rgb_pixels[offset + 1] = rgb_pixels[offset + 4] = rgb[1]
-                    rgb_pixels[offset + 2] = rgb_pixels[offset + 5] = rgb[2]
+                    rgb_pixels[offset + 0] = rgb_pixels[offset + 4] = rgb[2]
+                    rgb_pixels[offset + 1] = rgb_pixels[offset + 5] = rgb[1]
+                    rgb_pixels[offset + 2] = rgb_pixels[offset + 6] = rgb[0]
+                    rgb_pixels[offset + 3] = rgb_pixels[offset + 7] = rgb[255]
 
             return 640, 400, rgb_pixels
 
@@ -187,7 +189,7 @@ class CGA(mda.MDA):
 
     def RenderG640FrameGraphical(self):
         try:
-            rgb_pixels = [ 0 ] * 640 * 400 * 3
+            rgb_pixels = [ 0 ] * 640 * 400 * 4
             for addr in range(self._display_address, min(self._display_address + 16000, 16384)):
                 if addr - self._display_address >= 8192:
                     addr_without_base = addr - 8192 - self._display_address
@@ -204,10 +206,12 @@ class CGA(mda.MDA):
                 b = _ram[addr]
                 for x_i in range(8):
                     value = 255 if b & 1 else 0
-                    offset1 = (y * 640 * 2 + x + 7 - x_i) * 3
+                    offset1 = (y * 640 * 2 + x + 7 - x_i) * 4
                     rgb_pixels[offset1 + 0] = rgb_pixels[offset1 + 1] = rgb_pixels[offset1 + 2] = value
-                    offset2 = offset1 + 640 * 3
+                    rgb_pixels[offset1 + 3] =  255
+                    offset2 = offset1 + 640 * 4
                     rgb_pixels[offset2 + 0] = rgb_pixels[offset2 + 1] = rgb_pixels[offset2 + 2] = value
+                    rgb_pixels[offset2 + 3] =  255
                     b >>= 1
 
                 return 640, 400, rgb_pixels
