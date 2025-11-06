@@ -287,10 +287,7 @@ class VNCServer:
             for y in range(use_height):
                 in_offset = y * frame[0] * 4
                 out_offset = y * width * 4
-                for x in range(use_width * 4):
-                    buffer[out_offset] = frame[2][in_offset]
-                    out_offset += 1
-                    in_offset += 1
+                buffer[out_offset:out_offset + use_width * 4] = frame[2][in_offset:in_offset + use_width * 4]
             with session.stream_lock:
                 session.stream.send(bytes(update))
                 session.stream.send(bytes(buffer))
