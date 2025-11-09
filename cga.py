@@ -165,12 +165,13 @@ class CGA(mda.MDA):
 
                 b = self._ram[addr]
 
+                y_color_index = y if self._palette_per_scanline else 0
                 y_offset = y * 320 * 3 * 4
                 for x_i in range(4):
                     color_index = (b >> (x_i * 2)) & 3
                     x_offset = (x + 3 - x_i) * 3 * 2
                     offset = y_offset + x_offset
-                    self.GetPixelColor(y if self._palette_per_scanline else 0, color_index, rgb)
+                    self.GetPixelColor(y_color_index, color_index, rgb)
                     self._pixels[offset + 0] = self._pixels[offset + 4] = rgb[2]
                     self._pixels[offset + 1] = self._pixels[offset + 5] = rgb[1]
                     self._pixels[offset + 2] = self._pixels[offset + 6] = rgb[0]
