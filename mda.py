@@ -12,6 +12,9 @@ class MDA(graphics.Graphics):
         self._font = font.Font().get_font()
         self._display_address = 0
         self._ram_offset = 0xb0000
+        self._gf_width = 640
+        self._gf_height = 400
+        self._pixels = [ 0, 0, 0, 255 ] * (self._gf_width * self._gf_height)
 
         self._palette = [
                 (   0,   0,   0 ),
@@ -75,9 +78,6 @@ class MDA(graphics.Graphics):
     def RenderTextFrameGraphical(self):
         try:
             width = 80
-            gf_width = 640
-            gf_height = 401
-            pixels = [ 0 ] * (gf_width * gf_height * 4)
             for y in range(25):
                 for x in range(80):
                     mem_pointer = self._display_address + y * 80 * 2 + x * 2
@@ -97,29 +97,25 @@ class MDA(graphics.Graphics):
                             is_fg = bool(line & bit_mask)
                             pixel_offset = y_pixel_offset + (x * 8 + px) * 4
                             if is_fg:
-                                pixels[pixel_offset + 0] = self._palette[fg][2]
-                                pixels[pixel_offset + 1] = self._palette[fg][1]
-                                pixels[pixel_offset + 2] = self._palette[fg][0]
-                                pixels[pixel_offset + 3] = 255
+                                self._pixels[pixel_offset + 0] = self._palette[fg][2]
+                                self._pixels[pixel_offset + 1] = self._palette[fg][1]
+                                self._pixels[pixel_offset + 2] = self._palette[fg][0]
                                 pixel_offset += 640 * 4
-                                pixels[pixel_offset + 0] = self._palette[fg][2]
-                                pixels[pixel_offset + 1] = self._palette[fg][1]
-                                pixels[pixel_offset + 2] = self._palette[fg][0]
-                                pixels[pixel_offset + 3] = 255
+                                self._pixels[pixel_offset + 0] = self._palette[fg][2]
+                                self._pixels[pixel_offset + 1] = self._palette[fg][1]
+                                self._pixels[pixel_offset + 2] = self._palette[fg][0]
                             else:
-                                pixels[pixel_offset + 0] = self._palette[bg][2]
-                                pixels[pixel_offset + 1] = self._palette[bg][1]
-                                pixels[pixel_offset + 2] = self._palette[bg][0]
-                                pixels[pixel_offset + 3] = 255
+                                self._pixels[pixel_offset + 0] = self._palette[bg][2]
+                                self._pixels[pixel_offset + 1] = self._palette[bg][1]
+                                self._pixels[pixel_offset + 2] = self._palette[bg][0]
                                 pixel_offset += 640 * 4
-                                pixels[pixel_offset + 0] = self._palette[bg][2]
-                                pixels[pixel_offset + 1] = self._palette[bg][1]
-                                pixels[pixel_offset + 2] = self._palette[bg][0]
-                                pixels[pixel_offset + 3] = 255
+                                self._pixels[pixel_offset + 0] = self._palette[bg][2]
+                                self._pixels[pixel_offset + 1] = self._palette[bg][1]
+                                self._pixels[pixel_offset + 2] = self._palette[bg][0]
 
                             bit_mask >>= 1
 
-            return gf_width, gf_height, pixels
+            return self._gf_width, self._gf_height, self._pixels
 
         except Exception as e:
             print(f'RenderTextFrameGraphical exception: {e}, line number: {e.__traceback__.tb_lineno}')
