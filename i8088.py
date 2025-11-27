@@ -21,7 +21,7 @@ class i8088:
         self._io = pc_io.IO(b, devices, not run_IO)
         self._terminate_on_off_the_rails = run_IO
 
-        self._ops = [ None ] * 256
+        self._ops: Callable[[int], int] = [ None ] * 256
         self._ops[0x00] = self.Op_ADD_SUB_ADC_SBC
         self._ops[0x01] = self.Op_ADD_SUB_ADC_SBC
         self._ops[0x02] = self.Op_ADD_SUB_ADC_SBC
@@ -308,6 +308,8 @@ class i8088:
             if reg == 7:
                 return self._state._bh
 
+        return 0
+
     def GetSRegister(self, reg: int) -> int:
         reg &= 0b00000011
 
@@ -319,6 +321,8 @@ class i8088:
             return self._state._ss
         if reg == 0b011:
             return self._state._ds
+
+        return 0
 
     # value, cycles
     def GetDoubleRegisterMod01_02(self, reg: int, word: bool) -> Tuple[int, int, bool, int]:
@@ -379,6 +383,8 @@ class i8088:
             v = self.GetRegister(reg, w)
 
             return (v, False, 0, 0, 0)
+
+        return (0, False, 0, 0, 0)
 
     def GetRegisterMem(self, reg: int, mod: int, w: bool):
         if mod == 0:
@@ -529,6 +535,8 @@ class i8088:
         if mod == 3:
             self.PutRegister(reg, w, val)
             return 0  # TODO
+
+        return 0
 
     # value, cycles
     def GetDoubleRegisterMod00(self, reg: int) -> Tuple[int, int]:

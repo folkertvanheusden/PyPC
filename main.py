@@ -1,5 +1,6 @@
 #! /usr/bin/python3
 
+from typing import List
 import bus
 import cga
 import i8088
@@ -27,7 +28,7 @@ if status == 1:
     print("GIL is disabled")
 
 try:
-    devices = []
+    devices: List[object] = []
     devices.append(i8253.i8253())
     kb = keyboard.Keyboard()
     devices.append(kb)
