@@ -16,7 +16,8 @@ class MDA(graphics.Graphics):
         self._gf_height = 400
         self._pixels = [ 0, 0, 0, 255 ] * (self._gf_width * self._gf_height)
 
-        self._palette = [
+        self._palette = []
+        for p_row in [
                 (   0,   0,   0 ),
                 (   0,   0, 127 ),
                 (   0, 127,   0 ),
@@ -33,7 +34,8 @@ class MDA(graphics.Graphics):
                 ( 255,   0, 255 ),
                 ( 255, 255,   0 ),
                 ( 255, 255, 255 )
-                ]
+                ]:
+            self._palette.append((p_row[2], p_row[1], p_row[0]))
 
     @override
     def GetName(self) -> str:
@@ -96,23 +98,10 @@ class MDA(graphics.Graphics):
                         for px in range(8):
                             is_fg = bool(line & bit_mask)
                             pixel_offset = y_pixel_offset + (x * 8 + px) * 4
-                            if is_fg:
-                                self._pixels[pixel_offset + 0] = self._palette[fg][2]
-                                self._pixels[pixel_offset + 1] = self._palette[fg][1]
-                                self._pixels[pixel_offset + 2] = self._palette[fg][0]
-                                pixel_offset += 640 * 4
-                                self._pixels[pixel_offset + 0] = self._palette[fg][2]
-                                self._pixels[pixel_offset + 1] = self._palette[fg][1]
-                                self._pixels[pixel_offset + 2] = self._palette[fg][0]
-                            else:
-                                self._pixels[pixel_offset + 0] = self._palette[bg][2]
-                                self._pixels[pixel_offset + 1] = self._palette[bg][1]
-                                self._pixels[pixel_offset + 2] = self._palette[bg][0]
-                                pixel_offset += 640 * 4
-                                self._pixels[pixel_offset + 0] = self._palette[bg][2]
-                                self._pixels[pixel_offset + 1] = self._palette[bg][1]
-                                self._pixels[pixel_offset + 2] = self._palette[bg][0]
-
+                            pal = self._palette[fg] if is_fg else self._palette[bg]
+                            self._pixels[pixel_offset + 0:pixel_offset + 3] = pal[0:3]
+                            pixel_offset += 640 * 4
+                            self._pixels[pixel_offset + 0:pixel_offset + 3] = pal[0:3]
                             bit_mask >>= 1
 
             return self._gf_width, self._gf_height, self._pixels
