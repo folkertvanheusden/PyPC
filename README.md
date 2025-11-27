@@ -1,8 +1,8 @@
 PyPC is an IBM PC (8088) emulator written in Python.
 
-It is currently not even alpha. It boots and you can run e.g. MS-DOS with CheckIt3 or SpaceQuest 3 in it.
-You need to have 'GLABIOS.ROM' in the directory from which you start 'main.py'. It requires python 3.something.
-When it is running, you can also connect a VNC client to it: you see it then use the original font.
+It boots and you can run e.g. MS-DOS with CheckIt3 or SpaceQuest 3 in it.
+You need to have 'GLABIOS.ROM' in the directory from which you start 'main.py'. It requires python 3.12 or later.
+When it is running, you can also connect a VNC client to it: you see it then use the original font and see nice graphics.
 
 
 ### via telnet
