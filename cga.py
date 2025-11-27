@@ -166,19 +166,37 @@ class CGA(mda.MDA):
                 b = self._ram[addr]
 
                 y_color_index = y if self._palette_per_scanline else 0
+
+                if self._palette_index[y_color_index] >= 2:
+                    brightness = 255 if self._palette_index[y_color_index] == 3 else 200
+                    palette = [
+                            (0, 0, 0),
+                            (0, brightness, brightness),
+                            (brightness, 0, brightness),
+                            (brightness, brightness, brightness)
+                            ]
+                else:
+                    brightness = 255 if self._palette_index[y_color_index] == 1 else 200
+                    palette = [
+                            (0, 0, 0),
+                            (0, brightness, 0),
+                            (brightness, 0, 0),
+                            (0, 0, brightness)
+                            ]
+
                 y_offset = y * 320 * 4 * 4
                 for x_i in range(4):
                     color_index = (b >> (x_i * 2)) & 3
                     x_offset = (x + 3 - x_i) * 4 * 2
                     offset = y_offset + x_offset
-                    self.GetPixelColor(y_color_index, color_index, rgb)
-                    self._pixels[offset + 0] = self._pixels[offset + 4] = rgb[2]
-                    self._pixels[offset + 1] = self._pixels[offset + 5] = rgb[1]
-                    self._pixels[offset + 2] = self._pixels[offset + 6] = rgb[0]
+                    p = palette[color_index]
+                    self._pixels[offset + 0] = self._pixels[offset + 4] = p[2]
+                    self._pixels[offset + 1] = self._pixels[offset + 5] = p[1]
+                    self._pixels[offset + 2] = self._pixels[offset + 6] = p[0]
                     offset += 320 * 4 * 2
-                    self._pixels[offset + 0] = self._pixels[offset + 4] = rgb[2]
-                    self._pixels[offset + 1] = self._pixels[offset + 5] = rgb[1]
-                    self._pixels[offset + 2] = self._pixels[offset + 6] = rgb[0]
+                    self._pixels[offset + 0] = self._pixels[offset + 4] = p[2]
+                    self._pixels[offset + 1] = self._pixels[offset + 5] = p[1]
+                    self._pixels[offset + 2] = self._pixels[offset + 6] = p[0]
 
             return 640, 400, self._pixels
 
