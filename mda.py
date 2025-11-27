@@ -96,12 +96,16 @@ class MDA(graphics.Graphics):
                         line = self._font[2][char_offset + py]
                         y_pixel_offset = (y * 8 + py) * 640 * 4 * 2
                         for px in range(8):
-                            is_fg = bool(line & bit_mask)
                             pixel_offset = y_pixel_offset + (x * 8 + px) * 4
+                            is_fg = bool(line & bit_mask)
                             pal = self._palette[fg] if is_fg else self._palette[bg]
-                            self._pixels[pixel_offset + 0:pixel_offset + 3] = pal[0:3]
+                            self._pixels[pixel_offset + 0] = pal[0]
+                            self._pixels[pixel_offset + 1] = pal[1]
+                            self._pixels[pixel_offset + 2] = pal[2]
                             pixel_offset += 640 * 4
-                            self._pixels[pixel_offset + 0:pixel_offset + 3] = pal[0:3]
+                            self._pixels[pixel_offset + 0] = pal[0]
+                            self._pixels[pixel_offset + 1] = pal[1]
+                            self._pixels[pixel_offset + 2] = pal[2]
                             bit_mask >>= 1
 
             return self._gf_width, self._gf_height, self._pixels
